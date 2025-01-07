@@ -1,28 +1,42 @@
-from langgraph.graph import MessagesState
-from langgraph.types import Command
-from typing import Literal
+# src/agents/greeting_agent.py
+from langchain_openai import ChatOpenAI
+
 from src.tools.llm_tools import generate_response
 import logging
 
 logger = logging.getLogger("GreetingAgent")
 
-def greeting_agent(state: MessagesState) -> Command[Literal["supervisor", "__end__"]]:
-    """
-    Prepara la risposta finale per l'utente.
-    """
-    # Recupera il contesto e la risposta dell'agente precedente
-    user_message = state.get("original_message", "")
-    agent_response = state.get("last_agent_response")
-    logger.debug(f"Greeting Agent risponde con il risultato: {agent_response}")
+llm = ChatOpenAI(model="gpt-3.5-turbo")
 
-    # Usa LLMTools per generare una risposta naturale
-    response = generate_response(
-        user_message=user_message,
-        agent_feedback=agent_response
-    )
-    logger.debug(f"Risposta generata: {response}")
+def greeting_agent(state: dict) -> dict:
+    logger.debug(f"Stato ricevuto dal greeting_agent: {state}")
 
-    return Command(
-        update={"messages": [{"type": "assistant", "content": response}]},
-        goto="supervisor"
-    )
+    # Estrai le informazioni raccolte dal SupervisorAgent
+    collected_info = state.get("collected_info", "Nessuna informazione disponibile.")
+    logger.debug(f"Informazioni raccolte per GreetingAgent: {collected_info}")
+
+    # Genera una risposta naturale basata sulle informazioni raccolte
+    response = generate_response(collected_info)
+    logger.debug(f"Risposta generata dal GreetingAgent: {response}")
+
+    # Logica di terminazione basata sull'input dell'utente
+    terminate = state.get("terminate", False)
+    logger.debug(f"Flag di terminazione: {terminate}")
+
+    if terminate:
+        final_message = "Grazie per aver utilizzato il Voice Assistant. Arrivederci!"
+        return {
+            "update": {
+                "messages": [{"type": "assistant", "content": final_message}],
+                "last_agent_response": final_message
+            },
+            "goto": "__end__"
+        }
+    else:
+        return {
+            "update": {
+                "messages": [{"type": "assistant", "content": response}],
+                "last_agent_response": response
+            },
+            "goto": "__end__"  # Termina dopo aver risposto; il ciclo di ascolto è gestito nel VoiceAssistant
+        }

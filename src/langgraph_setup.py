@@ -1,29 +1,28 @@
-from langgraph.graph import StateGraph, MessagesState, START
-from src.agents.supervisor import supervisor
-from src.agents.spotify_agent import spotify_agent
-from src.agents.time_agent import time_agent
+# src/langgraph_setup.py
+
+from langgraph.graph import StateGraph, START, END
+from src.agents.supervisor_agent import supervisor_node
+from src.agents.researcher_agent import researcher_node
 from src.agents.greeting_agent import greeting_agent
-from src.agents.coder_agent import coder
+from src.state_schema import StateSchema  # Importa lo schema di stato
+import logging
 
-# Configura il LangGraph StateGraph
-builder = StateGraph(MessagesState)
+logger = logging.getLogger("LangGraphSetup")
 
-# Aggiungi tutti i nodi al grafo
-builder.add_node("supervisor", supervisor)
-builder.add_node("spotify_agent", spotify_agent)
-builder.add_node("time_agent", time_agent)
-builder.add_node("greeting_agent", greeting_agent)
-builder.add_node("coder", coder)
+# Inizializza il StateGraph con state_schema
+builder = StateGraph(state_schema=StateSchema)
 
-# Definisci il flusso iniziale
-builder.add_edge(START, "greeting_agent")  # Il Greeting Agent è il primo
-builder.add_edge("greeting_agent", "supervisor")  # Reindirizza al supervisore
-builder.add_edge("supervisor", "spotify_agent")
-builder.add_edge("supervisor", "time_agent")
-builder.add_edge("supervisor", "coder")
-builder.add_edge("spotify_agent", "greeting_agent")
-builder.add_edge("time_agent", "greeting_agent")
-builder.add_edge("coder", "greeting_agent")
+# Aggiungi i nodi
+builder.add_node("supervisor", supervisor_node)
+builder.add_node("researcher", researcher_node)
+builder.add_node("greeting", greeting_agent)
+
+# Definisci le transizioni tra i nodi
+builder.add_edge(START, "supervisor")       # Aggiungi questo collegamento
+builder.add_edge("supervisor", "researcher")
+builder.add_edge("supervisor", "greeting")
+builder.add_edge("researcher", "supervisor")
+builder.add_edge("greeting", "__end__")
 
 # Compila il grafo
-app = builder.compile()
+graph = builder.compile()

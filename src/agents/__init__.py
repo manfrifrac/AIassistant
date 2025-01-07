@@ -1,16 +1,9 @@
-# src/agents/__init__.py
+from .researcher_agent import researcher_node
+from .coder_agent import coder_node
+from .supervisor_agent import supervisor_node
 
-from .greeting_agent import greeting_agent
-from .time_agent import time_agent
-from .spotify_agent import spotify_agent
-from .supervisor import supervisor
-from .coder_agent import coder
-
-# Esporta tutti gli agenti
 __all__ = [
-    "greeting_agent",
-    "time_agent",
-    "spotify_agent",
-    "supervisor",
-    "coder",
+    "researcher_node",
+    "coder_node",
+    "supervisor_node",
 ]

@@ -1,17 +1,14 @@
+# src/voice_assistant.py
+
 import speech_recognition as sr
 import pygame
-import uuid
 import logging
 from src.stt import transcribe_audio
 from src.tts import generate_speech
-from src.langgraph_setup import app
+from src.langgraph_setup import graph
 import os
-from playsound import playsound
 from pydub import AudioSegment
-from langchain_core.messages import HumanMessage, AIMessage
 import tempfile
-from pydub import AudioSegment
-import os
 
 logger = logging.getLogger("VoiceAssistant")
 
@@ -20,26 +17,32 @@ class VoiceAssistant:
         self.listening = True
         pygame.mixer.init()
         logger.debug("VoiceAssistant inizializzazione completata.")
+        
+        # Inizializza lo stato come dizionario conforme a StateSchema
+        self.state = {
+            "messages": [
+                {"type": "system", "content": "Avvio del Voice Assistant"}
+            ],
+            # Inizialmente, nessuna ricerca o terminazione
+            "should_research": False,
+            "terminate": False,
+            "collected_info": "",
+            "current_node": "supervisor"  # Imposta il nodo corrente iniziale
+        }
 
     def play_audio(self, file: str):
         try:
             logger.debug(f"Tentativo di riproduzione file audio: {file}")
 
-            # Verifica che il file esista
             if not os.path.exists(file):
                 logger.error(f"Il file audio {file} non esiste.")
                 return
 
-            # Prova a riprodurre con pygame
-            try:
-                pygame.mixer.music.load(file)
-                pygame.mixer.music.play()
-                while pygame.mixer.music.get_busy():
-                    pygame.time.Clock().tick(10)
-                logger.debug("Riproduzione audio completata con pygame.")
-            except Exception as e:
-                logger.warning(f"Errore con pygame: {e}. Uso playsound come fallback.")
-                playsound(file)
+            pygame.mixer.music.load(file)
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                pygame.time.Clock().tick(10)
+            logger.debug("Riproduzione audio completata con pygame.")
         except Exception as e:
             logger.error(f"Errore durante la riproduzione dell'audio: {e}")
 
@@ -47,79 +50,65 @@ class VoiceAssistant:
         try:
             logger.debug(f"Generazione audio per il messaggio: {message}")
 
-            # Usa file temporanei per evitare problemi di permessi
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_mp3:
                 temp_mp3_path = temp_mp3.name
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav:
-                temp_wav_path = temp_wav.name
+            temp_wav_path = temp_mp3_path.replace(".mp3", ".wav")
 
-            # Genera l'audio in formato MP3
             generate_speech(message, output_file=temp_mp3_path)
-
-            # Converti MP3 in WAV
             sound = AudioSegment.from_mp3(temp_mp3_path)
             sound.export(temp_wav_path, format="wav")
 
             logger.info(f"File audio generato: {temp_mp3_path}, {temp_wav_path}")
-
-            # Prova a riprodurre il file WAV
             self.play_audio(temp_wav_path)
-
         except Exception as e:
             logger.error(f"Errore durante la generazione o riproduzione dell'audio: {e}")
-
         finally:
-            # Rimuovi i file temporanei
-            if os.path.exists(temp_mp3_path):
-                os.remove(temp_mp3_path)
-            if os.path.exists(temp_wav_path):
-                os.remove(temp_wav_path)
-
+            for temp_file in [temp_mp3_path, temp_wav_path]:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
 
     def process_command(self, command: str):
-        if not self.listening:
-            logger.debug("Ascolto disabilitato durante l'elaborazione.")
-            return
-
+        logger.debug(f"Comando ricevuto: {command}")
         try:
-            logger.debug(f"Comando ricevuto: {command}")
-            config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+            # Aggiungi il messaggio dell'utente allo stato persistente
+            self.state["messages"].append({"type": "user", "content": command, "name": "user"})
+            logger.debug(f"Stato prima dell'invocazione: {self.state}")
 
-            # Invoca il grafo
-            final_state = app.invoke(
-                {"messages": [{"type": "human", "content": command}]},
-                config=config
-            )
+            # Invoca il grafo degli agenti con lo stato persistente
+            command_response = graph.invoke(self.state)
+            logger.debug(f"Received Command: {command_response}")
 
-            logger.debug(f"Stato finale ricevuto: {final_state}")
-
-            if "messages" in final_state:
-                for msg in final_state["messages"]:
-                    logger.debug(f"Tipo di messaggio: {type(msg)}, Contenuto: {msg}")
-
-                    # Gestione di HumanMessage
-                    if isinstance(msg, HumanMessage):
-                        logger.debug(f"Messaggio umano ricevuto: {msg.content}")
-
-                    # Gestione di AIMessage
-                    elif isinstance(msg, AIMessage):
-                        content = msg.content
-                        if content:
-                            logger.info(f"Risposta AI: {content}")
-                            self.speak(content)
-                        else:
-                            logger.warning("Risposta AI vuota.")
-
-                    # Messaggio sconosciuto
+            if isinstance(command_response, dict):
+                # Applica gli aggiornamenti dallo stato del Command
+                updates = command_response.get("update", {})
+                logger.debug(f"Applying updates: {updates}")
+                for key, value in updates.items():
+                    if key == "messages":
+                        self.state["messages"].extend(value)
                     else:
-                        logger.warning(f"Formato del messaggio non riconosciuto: {msg}")
+                        self.state[key] = value
+                
+                # Gestisci il comando 'goto'
+                goto = command_response.get("goto")
+                logger.debug(f"Comando di goto: {goto}")
+                if goto in ["__end__", "END"]:
+                    logger.info("Ricevuto comando di terminazione. Chiusura Voice Assistant.")
+                    self.listening = False
+
+                # Aggiorna il nodo corrente
+                self.state["current_node"] = goto
+
+                # Controlla se ci sono nuovi messaggi da AI
+                if "messages" in updates:
+                    for msg in updates["messages"]:
+                        if msg.get("type") == "assistant" and msg.get("content"):
+                            logger.info(f"Risposta AI: {msg['content']}")
+                            self.speak(msg["content"])
+            else:
+                logger.error("Expected a dict object from graph.invoke.")
         except Exception as e:
             logger.error(f"Errore durante l'elaborazione del comando: {e}")
-
-
-
-
 
     def listen_and_process(self):
         recognizer = sr.Recognizer()
@@ -128,14 +117,12 @@ class VoiceAssistant:
             try:
                 audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
 
-                # Salva l'audio temporaneo
-                temp_file = "temp_audio.wav"
-                with open(temp_file, "wb") as f:
-                    f.write(audio.get_wav_data())
-                logger.debug(f"Audio salvato in {temp_file}")
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+                    temp_file.write(audio.get_wav_data())
+                    temp_file_path = temp_file.name
 
-                # Trascrivi il comando
-                command = transcribe_audio(temp_file)
+                logger.debug(f"Audio salvato in {temp_file_path}")
+                command = transcribe_audio(temp_file_path)
                 logger.debug(f"Comando trascritto: {command}")
                 self.process_command(command)
             except Exception as e:
@@ -143,5 +130,11 @@ class VoiceAssistant:
 
     def run(self):
         logger.info("Voice Assistant avviato.")
-        while True:
+        max_iterations = 100  # Limite per evitare loop infiniti
+        iteration = 0
+        while self.listening and iteration < max_iterations:
             self.listen_and_process()
+            iteration += 1
+        if iteration >= max_iterations:
+            logger.warning("Raggiunto il numero massimo di iterazioni. Chiusura Voice Assistant.")
+        logger.info("Voice Assistant terminato.")

@@ -1,64 +1,44 @@
 # src/tools/llm_tools.py
+from langchain_openai import ChatOpenAI
 
 import logging
-from src.config import OPENAI_API_KEY
-import openai
 
 logger = logging.getLogger("LLMTools")
 
-# Imposta la chiave API
-openai.api_key = OPENAI_API_KEY
+llm = ChatOpenAI(model="gpt-3.5-turbo")
 
-def analyze_intent(message: str) -> str:
-    valid_intents = ["spotify_agent", "time_agent", "greeting_agent", "coder", "finish"]
+def perform_research(query: str) -> str:
     try:
-        messages = [
-            {"role": "system", "content": (
-                "Sei un assistente per l'analisi dell'intento. Rispondi con uno dei seguenti intenti validi: "
-                "spotify_agent, time_agent, greeting_agent, coder, finish."
-            )},
-            {"role": "user", "content": message}
-        ]
-
-        logger.debug(f"Invio messaggi a OpenAI: {messages}")
-
-        response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=messages,
-            max_tokens=10,
-            temperature=0
+        logger.debug(f"Eseguendo ricerca per la query: {query}")
+        # Utilizza il metodo 'invoke' con 'input=messages'
+        response = llm.invoke(
+            input=[
+                {"role": "system", "content": f"Esegui una ricerca approfondita sulla seguente query: {query}. Fornisci i risultati in modo chiaro e conciso."}
+            ],
+            temperature=0.7
         )
-
-        intent = response.choices[0].message.content.strip().lower()
-        logger.debug(f"Intento analizzato: {intent}")
-
-        if intent not in valid_intents:
-            logger.warning(f"Intento non valido ricevuto: {intent}. Defaulting to 'finish'.")
-            return "finish"
-
-        return intent
+        # Estrai solo il contenuto della risposta
+        research_result = response.content.strip()
+        logger.debug(f"Risultati della ricerca: {research_result}")
+        return research_result
     except Exception as e:
-        logger.error(f"Errore durante l'analisi dell'intento: {e}")
-        return "finish"
+        logger.error(f"Errore durante la ricerca: {e}")
+        return "Mi dispiace, non sono riuscito a eseguire la ricerca."
 
-from openai import chat
-
-def generate_response(user_message: str, agent_feedback: str) -> str:
-    """
-    Genera una risposta naturale basata sul messaggio dell'utente e il feedback degli agenti.
-    """
-    prompt = (
-        f"L'utente ha detto: '{user_message}'.\n"
-        f"Risultato degli agenti: '{agent_feedback}'.\n"
-        f"Rispondi in modo naturale e cortese."
-    )
+def generate_response(collected_info: str) -> str:
     try:
-        response = chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=150
+        logger.debug(f"Generando risposta basata sulle informazioni raccolte: {collected_info}")
+        # Utilizza il metodo 'invoke' con 'input=messages'
+        response = llm.invoke(
+            input=[
+                {"role": "system", "content": f"Hai raccolto le seguenti informazioni: {collected_info}. Formuli una risposta naturale e cordiale all'utente utilizzando queste informazioni."}
+            ],
+            temperature=0.7
         )
-        return response.choices[0].message.content
+        # Estrai solo il contenuto della risposta
+        generated_response = response.content.strip()
+        logger.debug(f"Risposta generata: {generated_response}")
+        return generated_response
     except Exception as e:
-        logging.error(f"Errore durante la generazione della risposta: {e}")
-        return "Mi dispiace, non sono riuscito a generare una risposta completa."
+        logger.error(f"Errore durante la generazione della risposta: {e}")
+        return "Mi dispiace, non sono riuscito a generare una risposta."

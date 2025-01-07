@@ -1,26 +1,31 @@
+# src/agents/coder_agent.py
+
 from langgraph.graph import MessagesState
 from langgraph.types import Command
+from langchain_core.messages import HumanMessage, AIMessage  # Assicurati che AIMessage sia importato correttamente
 from typing import Literal
-from src.tools.python_repl_tool import execute_code
+from src.tools.custom_tools import python_repl_tool
+from langgraph.prebuilt import create_react_agent
 import logging
+from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger("CoderAgent")
 
-def coder(state: MessagesState) -> Command[Literal["greeting_agent"]]:
-    """
-    Agente per gestire richieste di codifica ed eseguire codice Python.
-    """
-    last_message = state.get("original_message", "")
-    logger.debug(f"Coder Agent ricevuto messaggio: {last_message}")
+llm = ChatOpenAI(model="gpt-3.5-turbo")
 
+coder_agent = create_react_agent(
+    llm, tools=[python_repl_tool], state_modifier="Sei un programmatore. Esegui solo il codice Python fornito."
+)
+
+def coder_node(state: MessagesState) -> Command[Literal["supervisor", "__end__"]]:
     try:
-        # Esegui il codice Python ricevuto
-        result = execute_code(last_message)
-        response_message = f"Risultato del codice:\n{result}"
+        result = coder_agent.invoke(state)
+        # Supponiamo che 'result' sia un AIMessage
+        user_message = state.get_last_user_message().content.lower()
+        if "fine" in user_message or "termina" in user_message:
+            return Command(goto="__end__")
+        else:
+            return Command(goto="supervisor")
     except Exception as e:
-        response_message = f"Errore nell'esecuzione del codice: {e}"
-
-    logger.debug(f"Coder Agent aggiorna il messaggio: {response_message}")
-    state["last_agent_response"] = response_message  # Salva il risultato per il Greeting Agent
-
-    return Command(goto="greeting_agent", update={})
+        logger.error(f"Errore nel coder_node: {e}")
+        return Command(goto="__end__")
