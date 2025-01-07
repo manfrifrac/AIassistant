@@ -11,18 +11,18 @@ Un assistente vocale basato su Python che utilizza tecnologie di machine learnin
 - **Esecuzione sicura di codice Python**: Grazie a `RestrictedPython`.
 
 ## Struttura del Progetto
-├── logs/ # File di log generati
-├── main.py # Script principale per avviare l'assistente 
-├── output.mp3 # File audio generati (temporanei) 
-├── output.wav # File audio temporanei 
-├── requirements.txt # File delle dipendenze 
-├── src/ # Codice sorgente 
-│ ├── agents/ # Moduli degli agenti per intenti specifici 
-│ ├── tools/ # Utilità per API e funzioni di supporto 
-│ ├── config.py # Configurazione del progetto 
-│ ├── stt.py # Modulo per la trascrizione vocale 
-│ ├── tts.py # Modulo per la generazione di audio 
-│ ├── voice_assistant.py # Classe principale per l'assistente vocale
+- **logs/**: File di log generati.
+- **main.py**: Script principale per avviare l'assistente.
+- **output.mp3**: File audio generati (temporanei).
+- **output.wav**: File audio temporanei.
+- **requirements.txt**: File delle dipendenze.
+- **src/**: Codice sorgente.
+  - **agents/**: Moduli degli agenti per intenti specifici.
+  - **tools/**: Utilità per API e funzioni di supporto.
+  - **config.py**: Configurazione del progetto.
+  - **stt.py**: Modulo per la trascrizione vocale.
+  - **tts.py**: Modulo per la generazione di audio.
+  - **voice_assistant.py**: Classe principale per l'assistente vocale.
 
 
 ## Requisiti
