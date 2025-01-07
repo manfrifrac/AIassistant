@@ -1,23 +1,51 @@
 # src/tools/custom_tools.py
 
-from langchain_community.tools.tavily_search import TavilySearchResults
+from typing import Annotated
 from langchain_core.tools import tool
-from langchain_experimental.utilities import PythonREPL
-import logging
+from langgraph.types import Command
+from langgraph.prebuilt.tool_node import InjectedState
 
-logger = logging.getLogger("CustomTools")
+from langgraph.prebuilt.tool_node import InjectedToolArg
 
-# Strumento per la ricerca
-tavily_tool = TavilySearchResults(max_results=5)
+class InjectedToolCallId(InjectedToolArg):
+    """Annotation for a Tool arg that is meant to be populated with the tool call ID.
 
-# Strumento per eseguire codice Python
-repl = PythonREPL()
+    Any Tool argument annotated with InjectedToolCallId will be hidden from a tool-calling
+    model, so that the model doesn't attempt to generate the argument. If using
+    ToolNode, the tool call ID will be automatically injected into the tool args.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+# src/tools/custom_tools.py
 
 @tool
-def python_repl_tool(code: str):
-    """Esegue codice Python e restituisce l'output."""
-    try:
-        result = repl.run(code)
-    except Exception as e:
-        return f"Errore nell'esecuzione del codice: {repr(e)}"
-    return f"Risultato dell'esecuzione:\n```\n{code}\n```\nOutput: {result}"
+def make_handoff_tool(agent_name: str):
+    """Crea un tool che effettua l'handoff a un altro agente."""
+    tool_name = f"transfer_to_{agent_name}"
+
+    @tool(tool_name)
+    def handoff_to_agent(
+        state: Annotated[dict, InjectedState] = None,
+        tool_call_id: Annotated[str, InjectedToolCallId] = None,
+    ):
+        """Effettua l'handoff a un altro agente."""
+        if not state:
+            raise ValueError("Il campo 'state' è obbligatorio per l'handoff.")
+        if not tool_call_id:
+            raise ValueError("Il campo 'tool_call_id' è obbligatorio per l'handoff.")
+
+        tool_message = {
+            "role": "tool",
+            "content": f"Successfully transferred to {agent_name}",
+            "name": tool_name,
+            "tool_call_id": tool_call_id,
+        }
+        return Command(
+            goto=agent_name,
+            graph=Command.PARENT,
+            update={"messages": state["messages"] + [tool_message]},
+        )
+
+    return handoff_to_agent
+
+

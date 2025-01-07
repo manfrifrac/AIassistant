@@ -1,18 +1,15 @@
-# main.py
-
 import logging
 from src.voice_assistant import VoiceAssistant
 
-# Configurazione del logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler()
-    ]
-)
+def pretty_print_messages(update):
+    print(update)
 
 def main():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler()]
+    )
     assistant = VoiceAssistant()
     try:
         assistant.run()

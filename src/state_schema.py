@@ -7,4 +7,4 @@ class StateSchema(TypedDict, total=False):
     should_research: bool
     terminate: bool
     collected_info: str
-    current_node: str  # Aggiungi questa chiave per tracciare il nodo corrente
+    current_node: str  # Chiave per tracciare il nodo corrente

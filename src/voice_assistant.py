@@ -1,122 +1,106 @@
-# src/voice_assistant.py
-
 import speech_recognition as sr
-import pygame
 import logging
 from src.stt import transcribe_audio
 from src.tts import generate_speech
 from src.langgraph_setup import graph
-import os
-from pydub import AudioSegment
 import tempfile
+from langgraph.types import Command
+import pygame
 
 logger = logging.getLogger("VoiceAssistant")
 
 class VoiceAssistant:
     def __init__(self):
         self.listening = True
-        pygame.mixer.init()
+        pygame.mixer.init()  # Inizializza il mixer di pygame
         logger.debug("VoiceAssistant inizializzazione completata.")
-        
-        # Inizializza lo stato come dizionario conforme a StateSchema
+
         self.state = {
             "messages": [
                 {"type": "system", "content": "Avvio del Voice Assistant"}
             ],
-            # Inizialmente, nessuna ricerca o terminazione
             "should_research": False,
             "terminate": False,
             "collected_info": "",
-            "current_node": "supervisor"  # Imposta il nodo corrente iniziale
+            "current_node": "supervisor"
         }
 
-    def play_audio(self, file: str):
+    def speak(self, text: str):
+        """
+        Converte il testo in parlato e lo riproduce direttamente con pygame.
+        """
         try:
-            logger.debug(f"Tentativo di riproduzione file audio: {file}")
+            tts_file = generate_speech(text)
+            if tts_file:
+                logger.debug(f"Riproduzione audio: {tts_file}")
+                pygame.mixer.music.load(tts_file)
+                pygame.mixer.music.play()
 
-            if not os.path.exists(file):
-                logger.error(f"Il file audio {file} non esiste.")
-                return
-
-            pygame.mixer.music.load(file)
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                pygame.time.Clock().tick(10)
-            logger.debug("Riproduzione audio completata con pygame.")
+                # Aspetta che l'audio finisca
+                while pygame.mixer.music.get_busy():
+                    pygame.time.Clock().tick(10)
+            else:
+                logger.error("Errore durante la generazione o riproduzione dell'audio.")
         except Exception as e:
-            logger.error(f"Errore durante la riproduzione dell'audio: {e}")
-
-    def speak(self, message: str):
-        try:
-            logger.debug(f"Generazione audio per il messaggio: {message}")
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_mp3:
-                temp_mp3_path = temp_mp3.name
-
-            temp_wav_path = temp_mp3_path.replace(".mp3", ".wav")
-
-            generate_speech(message, output_file=temp_mp3_path)
-            sound = AudioSegment.from_mp3(temp_mp3_path)
-            sound.export(temp_wav_path, format="wav")
-
-            logger.info(f"File audio generato: {temp_mp3_path}, {temp_wav_path}")
-            self.play_audio(temp_wav_path)
-        except Exception as e:
-            logger.error(f"Errore durante la generazione o riproduzione dell'audio: {e}")
-        finally:
-            for temp_file in [temp_mp3_path, temp_wav_path]:
-                if os.path.exists(temp_file):
-                    os.remove(temp_file)
+            logger.error(f"Errore nella funzione speak: {e}")
 
     def process_command(self, command: str):
+        """
+        Elabora il comando ricevuto.
+        """
         logger.debug(f"Comando ricevuto: {command}")
         try:
-            # Aggiungi il messaggio dell'utente allo stato persistente
+            # Aggiungi il messaggio dell'utente allo stato
             self.state["messages"].append({"type": "user", "content": command, "name": "user"})
             logger.debug(f"Stato prima dell'invocazione: {self.state}")
 
-            # Invoca il grafo degli agenti con lo stato persistente
+            # Invoca il grafo con lo stato attuale
             command_response = graph.invoke(self.state)
-            logger.debug(f"Received Command: {command_response}")
+            logger.debug(f"Risposta ricevuta dal grafo: {command_response}")
 
-            if isinstance(command_response, dict):
-                # Applica gli aggiornamenti dallo stato del Command
-                updates = command_response.get("update", {})
-                logger.debug(f"Applying updates: {updates}")
-                for key, value in updates.items():
-                    if key == "messages":
-                        self.state["messages"].extend(value)
-                    else:
-                        self.state[key] = value
-                
-                # Gestisci il comando 'goto'
-                goto = command_response.get("goto")
-                logger.debug(f"Comando di goto: {goto}")
-                if goto in ["__end__", "END"]:
-                    logger.info("Ricevuto comando di terminazione. Chiusura Voice Assistant.")
-                    self.listening = False
+            # Converti il risultato in un oggetto Command se necessario
+            if not isinstance(command_response, Command):
+                logger.warning("Risultato non è un'istanza di Command, interpretato come dizionario.")
+                command_response = Command(
+                    goto=command_response.get("current_node", "__end__"),
+                    update=command_response
+                )
 
-                # Aggiorna il nodo corrente
-                self.state["current_node"] = goto
+            # Applica gli aggiornamenti di stato
+            updates = command_response.update
+            logger.debug(f"Aggiornamenti applicati: {updates}")
+            for key, value in updates.items():
+                if key == "messages":
+                    self.state["messages"].extend(value)
+                else:
+                    self.state[key] = value
 
-                # Controlla se ci sono nuovi messaggi da AI
-                if "messages" in updates:
-                    for msg in updates["messages"]:
-                        if msg.get("type") == "assistant" and msg.get("content"):
-                            logger.info(f"Risposta AI: {msg['content']}")
-                            self.speak(msg["content"])
+            # Riproduci i messaggi generati dall'assistente
+            for msg in self.state.get("messages", []):
+                if msg.get("type") == "assistant" and msg.get("content"):
+                    self.speak(msg["content"])
+
+            # Gestisci il comando di terminazione
+            goto = command_response.goto
+            logger.debug(f"Comando di goto: {goto}")
+            if goto in ["__end__", "END", "FINISH"]:
+                logger.info("Ricevuto comando di terminazione. Chiusura Voice Assistant.")
+                self.listening = False
             else:
-                logger.error("Expected a dict object from graph.invoke.")
+                self.state["current_node"] = goto
+                logger.debug(f"Nodo corrente aggiornato a: {self.state['current_node']}")
         except Exception as e:
             logger.error(f"Errore durante l'elaborazione del comando: {e}")
 
     def listen_and_process(self):
+        """
+        Ascolta il comando vocale, lo trascrive e lo elabora.
+        """
         recognizer = sr.Recognizer()
         with sr.Microphone() as source:
             logger.info("Ascoltando...")
             try:
                 audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
-
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
                     temp_file.write(audio.get_wav_data())
                     temp_file_path = temp_file.name
@@ -129,12 +113,10 @@ class VoiceAssistant:
                 logger.error(f"Errore durante l'ascolto: {e}")
 
     def run(self):
+        """
+        Avvia il Voice Assistant.
+        """
         logger.info("Voice Assistant avviato.")
-        max_iterations = 100  # Limite per evitare loop infiniti
-        iteration = 0
-        while self.listening and iteration < max_iterations:
+        while self.listening:
             self.listen_and_process()
-            iteration += 1
-        if iteration >= max_iterations:
-            logger.warning("Raggiunto il numero massimo di iterazioni. Chiusura Voice Assistant.")
         logger.info("Voice Assistant terminato.")

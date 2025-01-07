@@ -1,15 +1,10 @@
-# src/stt.py
-
 import requests
 import os
-from dotenv import load_dotenv
 import logging
 
-# Carica le chiavi API
-load_dotenv()
-API_KEY = os.getenv("OPENAI_API_KEY")
-
 logger = logging.getLogger("STT")
+
+API_KEY = os.getenv("OPENAI_API_KEY")
 
 def transcribe_audio(file_path, language="it"):
     """
