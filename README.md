@@ -1,3 +1,4 @@
+
 # Voice Assistant Project
 
 Un assistente vocale basato su Python che utilizza tecnologie di machine learning e API per rispondere a comandi vocali, analizzare intenti, interagire con Spotify e molto altro.
@@ -14,7 +15,6 @@ Un assistente vocale basato su Python che utilizza tecnologie di machine learnin
 - **logs/**: File di log generati.
 - **main.py**: Script principale per avviare l'assistente.
 - **output.mp3**: File audio generati (temporanei).
-- **output.wav**: File audio temporanei.
 - **requirements.txt**: File delle dipendenze.
 - **src/**: Codice sorgente.
   - **agents/**: Moduli degli agenti per intenti specifici.
@@ -39,24 +39,27 @@ Un assistente vocale basato su Python che utilizza tecnologie di machine learnin
    ```bash
    git clone https://github.com/username/repository-name.git
    cd repository-name
-
+   ```
 
 2. **Installa le dipendenze**:
     ```bash
     pip install -r requirements.txt
+    ```
 
-3. **Configura le variabili d'ambiente: Crea un file .env nella root del progetto e aggiungi le chiavi API:**:
-    ```bash
+3. **Configura le variabili d'ambiente**: 
+   Crea un file `.env` nella root del progetto e aggiungi le chiavi API:
+    ```
     OPENAI_API_KEY=your_openai_api_key
     SPOTIFY_CLIENT_ID=your_spotify_client_id
     SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
     SPOTIFY_REDIRECT_URI=your_spotify_redirect_uri
-
+    ```
 
 ## Utilizzo
 Avvia l'assistente vocale con:
     ```bash
     python main.py
+    ```
 
 L'assistente inizierà ad ascoltare i comandi vocali tramite il microfono.
 

@@ -16,3 +16,31 @@ venv/
 
 # Log e altri file generati
 logs/
+
+
+# Byte-compiled files
+*.py[cod]
+__pycache__/
+*.pyo
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Environment variables
+.env
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Audio files
+*.mp3
+*.wav
+
+# Pytest cache
+.pytest_cache/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
