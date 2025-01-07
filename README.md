@@ -11,7 +11,7 @@ Un assistente vocale basato su Python che utilizza tecnologie di machine learnin
 - **Esecuzione sicura di codice Python**: Grazie a `RestrictedPython`.
 
 ## Struttura del Progetto
-├── logs/ # File di log generati 
+├── logs/ # File di log generati
 ├── main.py # Script principale per avviare l'assistente 
 ├── output.mp3 # File audio generati (temporanei) 
 ├── output.wav # File audio temporanei 
