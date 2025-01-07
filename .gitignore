@@ -3,6 +3,7 @@
 __pycache__/
 *.log
 *.DS_Store
+.cache
 
 # File temporanei
 output.mp3
