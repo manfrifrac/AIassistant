@@ -1,17 +1,24 @@
+# src/stt.py
+
 import requests
 import os
 from dotenv import load_dotenv
+import logging
 
-# Carica chiavi API
+# Carica le chiavi API
 load_dotenv()
 API_KEY = os.getenv("OPENAI_API_KEY")
 
+logger = logging.getLogger("STT")
+
 def transcribe_audio(file_path, language="it"):
     """
-    Trascrive l'audio in testo usando le API OpenAI.
+    Trascrive l'audio in testo utilizzando l'API Whisper di OpenAI.
+    
     Args:
-        file_path (str): Percorso del file audio.
+        file_path (str): Percorso al file audio.
         language (str): Lingua dell'audio (ISO-639-1, es. "it").
+    
     Returns:
         str: Testo trascritto.
     """
@@ -19,11 +26,20 @@ def transcribe_audio(file_path, language="it"):
     headers = {
         "Authorization": f"Bearer {API_KEY}"
     }
-    files = {
-        "file": (os.path.basename(file_path), open(file_path, "rb")),
-        "model": (None, "whisper-1"),
-        "language": (None, language)
-    }
-    response = requests.post(url, headers=headers, files=files)
-    response.raise_for_status()
-    return response.json().get("text", "")
+    with open(file_path, "rb") as f:
+        files = {
+            "file": (os.path.basename(file_path), f, "audio/wav"),
+        }
+        data = {
+            "model": "whisper-1",
+            "language": language
+        }
+        try:
+            response = requests.post(url, headers=headers, files=files, data=data)
+            response.raise_for_status()
+            transcription = response.json().get("text", "")
+            logger.debug(f"Trascrizione riuscita: {transcription}")
+            return transcription
+        except requests.RequestException as e:
+            logger.error(f"Errore durante la trascrizione audio: {e}")
+            return ""

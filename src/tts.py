@@ -1,35 +1,25 @@
-import requests
-import os
-from dotenv import load_dotenv
+from gtts import gTTS
+import logging
 
-# Carica chiavi API
-load_dotenv()
-API_KEY = os.getenv("OPENAI_API_KEY")
+logger = logging.getLogger("TTS")
 
-def generate_speech(text, voice="alloy", speed=1.0, output_file="output.mp3"):
+def generate_speech(text, language="it", output_file="output.mp3"):
     """
-    Genera audio dal testo usando le API OpenAI.
+    Genera parlato da testo utilizzando Google Text-to-Speech.
+
     Args:
-        text (str): Testo da convertire in audio.
-        voice (str): Voce da utilizzare (es. "alloy").
-        speed (float): Velocità dell'audio (default 1.0).
+        text (str): Testo da convertire in parlato.
+        language (str): Codice della lingua (es. "it" per italiano).
         output_file (str): Nome del file di output.
+
     Returns:
-        str: Percorso del file audio generato.
+        str: Percorso al file audio generato.
     """
-    url = "https://api.openai.com/v1/audio/speech"
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "tts-1",
-        "input": text,
-        "voice": voice,
-        "speed": speed
-    }
-    response = requests.post(url, headers=headers, json=payload)
-    response.raise_for_status()
-    with open(output_file, "wb") as f:
-        f.write(response.content)
-    return output_file
+    try:
+        tts = gTTS(text=text, lang=language, slow=False)
+        tts.save(output_file)
+        logger.debug(f"Parlato generato e salvato in {output_file}")
+        return output_file
+    except Exception as e:
+        logger.error(f"Errore durante la generazione del parlato: {e}")
+        return ""

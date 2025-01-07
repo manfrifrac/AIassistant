@@ -1,0 +1,11 @@
+openai>=1.0.0
+requests
+spotipy
+python-dotenv
+langgraph
+speechrecognition
+pygame
+RestrictedPython
+gTTS
+playsound
+pydub
