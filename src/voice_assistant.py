@@ -1,101 +1,57 @@
-import speech_recognition as sr
 import logging
-from src.stt import transcribe_audio
-from src.tts import generate_speech
-from src.langgraph_setup import graph
+import speech_recognition as sr
 import tempfile
-from langgraph.types import Command
-import pygame
+from src.state.state_manager import StateManager
+from src.audio.audio_handler import AudioHandler
+from src.utils.error_handler import ErrorHandler
+from src.stt import transcribe_audio
+from src.langgraph_setup import graph
 
 logger = logging.getLogger("VoiceAssistant")
 
 class VoiceAssistant:
     def __init__(self):
         self.listening = True
-        pygame.mixer.init()  # Inizializza il mixer di pygame
+        self.state_manager = StateManager()
+        self.audio_handler = AudioHandler()
         logger.debug("VoiceAssistant inizializzazione completata.")
 
-        self.state = {
-            "messages": [
-                {"type": "system", "content": "Avvio del Voice Assistant"}
-            ],
-            "should_research": False,
-            "terminate": False,
-            "collected_info": "",
-            "current_node": "supervisor"
-        }
-
-    def speak(self, text: str):
-        """
-        Converte il testo in parlato e lo riproduce direttamente con pygame.
-        """
-        try:
-            tts_file = generate_speech(text)
-            if tts_file:
-                logger.debug(f"Riproduzione audio: {tts_file}")
-                pygame.mixer.music.load(tts_file)
-                pygame.mixer.music.play()
-
-                # Aspetta che l'audio finisca
-                while pygame.mixer.music.get_busy():
-                    pygame.time.Clock().tick(10)
-            else:
-                logger.error("Errore durante la generazione o riproduzione dell'audio.")
-        except Exception as e:
-            logger.error(f"Errore nella funzione speak: {e}")
-
     def process_command(self, command: str):
-        """
-        Elabora il comando ricevuto.
-        """
-        logger.debug(f"Comando ricevuto: {command}")
+        """Elabora il comando trascritto."""
         try:
-            # Aggiungi il messaggio dell'utente allo stato
-            self.state["messages"].append({"type": "user", "content": command, "name": "user"})
-            logger.debug(f"Stato prima dell'invocazione: {self.state}")
+            state = self.state_manager.state
 
-            # Invoca il grafo con lo stato attuale
-            command_response = graph.invoke(self.state)
-            logger.debug(f"Risposta ricevuta dal grafo: {command_response}")
+            # Log iniziale del comando ricevuto
+            logger.debug(f"Comando ricevuto: {command}")
 
-            # Converti il risultato in un oggetto Command se necessario
-            if not isinstance(command_response, Command):
-                logger.warning("Risultato non è un'istanza di Command, interpretato come dizionario.")
-                command_response = Command(
-                    goto=command_response.get("current_node", "__end__"),
-                    update=command_response
-                )
+            # Aggiungi il messaggio dell'utente
+            state["user_messages"].append({"content": command, "role": "user"})
+            logger.debug(f"user_messages aggiornati: {state['user_messages']}")
 
-            # Applica gli aggiornamenti di stato
-            updates = command_response.update
-            logger.debug(f"Aggiornamenti applicati: {updates}")
-            for key, value in updates.items():
-                if key == "messages":
-                    self.state["messages"].extend(value)
-                else:
-                    self.state[key] = value
+            # Invoca il grafo
+            command_response = graph.invoke(state)
+            self.state_manager.update_state(command_response.get("update", {}))
+            logger.debug(f"Stato aggiornato dopo il grafo: {self.state_manager.state}")
 
-            # Riproduci i messaggi generati dall'assistente
-            for msg in self.state.get("messages", []):
-                if msg.get("type") == "assistant" and msg.get("content"):
-                    self.speak(msg["content"])
+            # Recupera il messaggio dell'assistente
+            assistant_message = self.state_manager.get_assistant_message()
+            if not assistant_message:
+                assistant_message = "Mi dispiace, non sono sicuro di aver capito. Puoi ripetere, per favore?"
+                state["agent_messages"].append({"content": assistant_message, "role": "assistant"})
 
-            # Gestisci il comando di terminazione
-            goto = command_response.goto
-            logger.debug(f"Comando di goto: {goto}")
-            if goto in ["__end__", "END", "FINISH"]:
-                logger.info("Ricevuto comando di terminazione. Chiusura Voice Assistant.")
-                self.listening = False
-            else:
-                self.state["current_node"] = goto
-                logger.debug(f"Nodo corrente aggiornato a: {self.state['current_node']}")
+            logger.debug(f"Messaggio dell'assistente: {assistant_message}")
+            logger.debug(f"agent_messages aggiornati: {state['agent_messages']}")
+
+            # Riproduci il messaggio
+            self.audio_handler.speak(assistant_message)
+
         except Exception as e:
-            logger.error(f"Errore durante l'elaborazione del comando: {e}")
+            ErrorHandler.handle_error(e, "Errore durante l'elaborazione del comando")
+            self.audio_handler.speak("Si è verificato un errore. Prova di nuovo.")
+
 
     def listen_and_process(self):
-        """
-        Ascolta il comando vocale, lo trascrive e lo elabora.
-        """
+        """Ascolta il comando vocale e lo elabora."""
         recognizer = sr.Recognizer()
         with sr.Microphone() as source:
             logger.info("Ascoltando...")
@@ -110,12 +66,10 @@ class VoiceAssistant:
                 logger.debug(f"Comando trascritto: {command}")
                 self.process_command(command)
             except Exception as e:
-                logger.error(f"Errore durante l'ascolto: {e}")
+                ErrorHandler.handle_error(e, "Errore durante l'ascolto")
 
     def run(self):
-        """
-        Avvia il Voice Assistant.
-        """
+        """Avvia il Voice Assistant."""
         logger.info("Voice Assistant avviato.")
         while self.listening:
             self.listen_and_process()

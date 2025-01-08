@@ -10,20 +10,20 @@ llm = ChatOpenAI(model="gpt-3.5-turbo")
 def perform_research(query: str) -> str:
     try:
         logger.debug(f"Eseguendo ricerca per la query: {query}")
-        # Utilizza il metodo 'invoke' con 'input=messages'
         response = llm.invoke(
             input=[
                 {"role": "system", "content": f"Esegui una ricerca approfondita sulla seguente query: {query}. Fornisci i risultati in modo chiaro e conciso."}
             ],
             temperature=0.7
         )
-        # Estrai solo il contenuto della risposta
         research_result = response.content.strip()
         logger.debug(f"Risultati della ricerca: {research_result}")
         return research_result
     except Exception as e:
         logger.error(f"Errore durante la ricerca: {e}")
-        return "Mi dispiace, non sono riuscito a eseguire la ricerca."
+        return "Errore durante la ricerca. Riprovare."
+
+
 
 def generate_response(collected_info: str) -> str:
     try:

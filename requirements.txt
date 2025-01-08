@@ -1,7 +1,6 @@
-
-langgraph
-langchain_community
-langchain_experimental
+fastapi
+uvicorn
+langchain_openai
 spotipy
 gtts
 pydub

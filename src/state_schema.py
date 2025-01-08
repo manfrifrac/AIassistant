@@ -1,10 +1,11 @@
-# src/state_schema.py
-
 from typing import TypedDict, List, Dict, Any
 
 class StateSchema(TypedDict, total=False):
-    messages: List[Dict[str, Any]]
+    user_messages: List[Dict[str, Any]]
+    agent_messages: List[Dict[str, Any]]  # Messaggi generati dall'agente
     should_research: bool
     terminate: bool
     collected_info: str
-    current_node: str  # Chiave per tracciare il nodo corrente
+    current_node: str
+    valid_query: bool
+    query: str

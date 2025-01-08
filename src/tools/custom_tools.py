@@ -1,11 +1,7 @@
-# src/tools/custom_tools.py
-
 from typing import Annotated
 from langchain_core.tools import tool
 from langgraph.types import Command
-from langgraph.prebuilt.tool_node import InjectedState
-
-from langgraph.prebuilt.tool_node import InjectedToolArg
+from langgraph.prebuilt.tool_node import InjectedState, InjectedToolArg
 
 class InjectedToolCallId(InjectedToolArg):
     """Annotation for a Tool arg that is meant to be populated with the tool call ID.
@@ -16,7 +12,6 @@ class InjectedToolCallId(InjectedToolArg):
     """
     def __init__(self) -> None:
         super().__init__()
-# src/tools/custom_tools.py
 
 @tool
 def make_handoff_tool(agent_name: str):
@@ -47,5 +42,3 @@ def make_handoff_tool(agent_name: str):
         )
 
     return handoff_to_agent
-
-

@@ -1,5 +1,6 @@
 # src/agents/supervisor_agent.py
 
+from typing import List, Dict, Any
 from typing_extensions import Literal
 from langchain_openai import ChatOpenAI
 import logging
@@ -33,35 +34,39 @@ system_prompt = (
 
 llm = ChatOpenAI(model="gpt-3.5-turbo")
 
-def get_last_user_message(messages):
-    """
-    Estrae l'ultimo messaggio dell'utente dalla lista di messaggi.
-    Ignora i messaggi di tipo 'assistant'.
-    """
-    for msg in reversed(messages):
-        if msg.get("type") == "user" or msg.get("role") == "user":
-            return msg.get("content")
-    return ""
 
 def determine_next_agent(user_message: str) -> str:
-    """
-    Utilizza l'LLM per determinare il prossimo agente.
-    """
+    # Messaggi al modello
     model_messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message}
     ]
-
+    # Chiamata al modello
     response = llm.invoke(input=model_messages)
     next_agent = response.content.strip().upper()
 
+    # Debug della risposta
     logger.debug(f"Supervisor ha ricevuto 'next_agent': {next_agent}")
 
-    return next_agent
+    # Validazione
+    if next_agent in ["RESEARCHER", "FINISH"]:
+        return next_agent
+    else:
+        logger.warning(f"Risposta non valida dal modello: {next_agent}. Default a 'FINISH'.")
+        return "FINISH"
+
+
+def get_last_user_message(messages: List[Dict[str, Any]]) -> str:
+    """Estrae l'ultimo messaggio dell'utente."""
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            return msg.get("content", "")
+    return "Nessun messaggio valido trovato."
+
 
 def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "__end__"]]:
     try:
-        last_user_message = get_last_user_message(state.get("messages", []))
+        last_user_message = get_last_user_message(state.get("user_messages", []))
         if not last_user_message:
             logger.warning("Nessun messaggio dell'utente trovato.")
             return Command(goto="__end__", update={"terminate": True})
@@ -72,12 +77,31 @@ def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "_
         if next_agent == "FINISH":
             return Command(
                 goto="__end__",
-                update={"terminate": True, "collected_info": last_user_message}
+                update={
+                    "terminate": True,
+                    "collected_info": last_user_message,
+                    "agent_messages": state.get("agent_messages", []) + [{"role": "assistant", "content": "Conversazione terminata."}]
+                }
             )
+
         elif next_agent.lower() == "researcher":
-            return Command(goto="researcher", update={"query": last_user_message})
+            return Command(
+                goto="researcher",
+                update={
+                    "query": last_user_message, 
+                    "valid_query": True, 
+                    "agent_messages": state.get("agent_messages", []) + [{"role": "assistant", "content": "Sto cercando informazioni..."}]
+                }
+            )
+        elif next_agent.lower() == "greeting":
+            return Command(
+                goto="greeting",
+                update={
+                    "collected_info": last_user_message, 
+                    "agent_messages": state.get("agent_messages", []) + [{"role": "assistant", "content": "Ciao! Come posso aiutarti?"}]
+                }
+            )
         else:
-            logger.warning(f"Agente sconosciuto: {next_agent}. Terminazione della conversazione.")
             return Command(goto="__end__", update={"terminate": True})
     except Exception as e:
         logger.error(f"Errore nel supervisor_node: {e}")

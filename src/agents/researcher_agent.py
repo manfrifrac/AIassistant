@@ -1,25 +1,37 @@
 # src/agents/researcher_agent.py
 
-from typing_extensions import Literal
-from langchain_openai import ChatOpenAI
-import logging
+from langgraph.graph import MessagesState
 from langgraph.types import Command
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
 from src.tools.llm_tools import perform_research
+import logging
+from typing import Literal
+
 logger = logging.getLogger("ResearcherAgent")
 
 llm = ChatOpenAI(model="gpt-3.5-turbo")
 
-def researcher_node(state: dict) -> Command[Literal["greeting"]]:
-    query = state.get("query", "")
-    logger.debug(f"Researcher ha ricevuto la query: '{query}'")
-    if not query:
-        logger.debug("Nessuna query fornita.")
-        return Command(goto="greeting", update={"terminate": True})
+# Creazione del researcher agent
+researcher_agent = create_react_agent(
+    llm, tools=[], state_modifier="Sei un ricercatore. Analizza e rispondi con informazioni utili."
+)
 
-    logger.debug(f"Researcher sta eseguendo la ricerca per la query: {query}")
-    research_result = perform_research(query)
-    logger.debug(f"Researcher produce la risposta: {research_result}")
-    return Command(
-        goto="greeting",
-        update={"collected_info": research_result}
-    )
+def researcher_node(state: dict) -> Command[Literal["greeting"]]:
+    query = state.get("query", "").strip()
+    if not query:
+        return Command(goto="__end__", update={"terminate": True})
+
+    try:
+        research_result = perform_research(query)
+        return Command(
+            goto="greeting",
+            update={
+                "agent_messages": state.get("agent_messages", []) + [
+                    {"content": research_result, "role": "assistant"}
+                ]
+            }
+        )
+    except Exception as e:
+        logger.error(f"Errore nel nodo Researcher: {e}")
+        return Command(goto="__end__", update={"terminate": True})
