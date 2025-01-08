@@ -7,6 +7,6 @@ class ErrorHandler:
     def handle_error(error, context=""):
         """Logga gli errori con contesto aggiuntivo."""
         if logger:
-            logger.error(f"{context} - {error}")
+            logger.error(f"{context} - {error}", exc_info=True)
         else:
             print(f"Errore non loggato: {context} - {error}")

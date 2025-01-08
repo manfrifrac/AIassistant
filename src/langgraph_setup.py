@@ -1,3 +1,5 @@
+# src/langgraph_setup.py
+
 from langgraph.graph import StateGraph, START, END
 from src.agents.supervisor_agent import supervisor_node
 from src.agents.researcher_agent import researcher_node
@@ -18,8 +20,9 @@ builder.add_node("greeting", greeting_node)
 # Definisci le transizioni
 builder.add_edge(START, "supervisor")
 builder.add_edge("supervisor", "researcher")
+builder.add_edge("supervisor", "greeting")
 builder.add_edge("researcher", "greeting")
-builder.add_edge("greeting", END)
+builder.add_edge("greeting", END)  # Nodo terminale
 
 # Compila il grafo
 graph = builder.compile()

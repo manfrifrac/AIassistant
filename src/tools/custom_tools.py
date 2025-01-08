@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 from langchain_core.tools import tool
 from langgraph.types import Command
@@ -12,8 +13,8 @@ class InjectedToolCallId(InjectedToolArg):
     """
     def __init__(self) -> None:
         super().__init__()
+logger = logging.getLogger(__name__)
 
-@tool
 def make_handoff_tool(agent_name: str):
     """Crea un tool che effettua l'handoff a un altro agente."""
     tool_name = f"transfer_to_{agent_name}"
@@ -25,9 +26,16 @@ def make_handoff_tool(agent_name: str):
     ):
         """Effettua l'handoff a un altro agente."""
         if not state:
+            logger.error("Il campo 'state' non è stato fornito.")
             raise ValueError("Il campo 'state' è obbligatorio per l'handoff.")
         if not tool_call_id:
+            logger.error("Il campo 'tool_call_id' non è stato fornito.")
             raise ValueError("Il campo 'tool_call_id' è obbligatorio per l'handoff.")
+
+        logger.debug(f"Effettuando handoff a {agent_name} con tool_call_id {tool_call_id} e stato {state}")
+
+        # Combina 'user_messages' e 'agent_messages' in 'messages'
+        messages = state.get("user_messages", []) + state.get("agent_messages", [])
 
         tool_message = {
             "role": "tool",
@@ -38,7 +46,10 @@ def make_handoff_tool(agent_name: str):
         return Command(
             goto=agent_name,
             graph=Command.PARENT,
-            update={"messages": state["messages"] + [tool_message]},
+            update={
+                "user_messages": state.get("user_messages", []),
+                "agent_messages": state.get("agent_messages", []) + [tool_message],
+            },
         )
 
     return handoff_to_agent

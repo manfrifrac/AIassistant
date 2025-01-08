@@ -4,33 +4,27 @@ from typing import List, Dict, Any
 from typing_extensions import Literal
 from langchain_openai import ChatOpenAI
 import logging
-from src.tools.custom_tools import make_handoff_tool
 from langgraph.types import Command
-from langchain_core.runnables.config import RunnableConfig
+from langgraph.graph import END  # Assicurati di importare END
 
 logger = logging.getLogger("SupervisorAgent")
 
 # Definisci i membri (agenti) gestiti dal Supervisor
-members = ["researcher"]
-options = members + ["FINISH"]
-
-# Crea strumenti di handoff
-handoff_to_researcher = make_handoff_tool("researcher")
-handoff_to_greeting = make_handoff_tool("greeting")
+members = ["researcher", "greeting"]
 
 system_prompt = (
     "Sei un supervisore incaricato di gestire una conversazione tra i seguenti agenti: "
     f"{', '.join(members)}. "
     "Quando ricevi un comando dall'utente, determina quale agente deve agire successivamente. "
     "Se l'utente fornisce una domanda o una richiesta di informazioni specifiche, passa la query al researcher. "
-    "Se l'utente fa una dichiarazione generale o desidera terminare la conversazione, rispondi con 'FINISH'. "
-    "Rispondi esclusivamente con il nome dell'agente appropriato (es. 'researcher') oppure con 'FINISH'. "
+    "Se l'utente fa una dichiarazione generale, passa al greeting. "
+    "Rispondi esclusivamente con il nome dell'agente appropriato (es. 'researcher' o 'greeting'). "
     "Non fornire ulteriori spiegazioni o testo aggiuntivo. "
     "Esempi:\n"
     "- Se l'utente dice 'Quali sono le ultime notizie sul cambiamento climatico?', rispondi con 'researcher'.\n"
-    "- Se l'utente dice 'Grazie, hai finito il lavoro', rispondi con 'FINISH'.\n"
-    "- Se l'utente dice 'Ciò mi sta ascoltando', rispondi con 'FINISH'."
+    "- Se l'utente dice 'Ciao, come va?', rispondi con 'greeting'."
 )
+
 
 llm = ChatOpenAI(model="gpt-3.5-turbo")
 
@@ -49,11 +43,11 @@ def determine_next_agent(user_message: str) -> str:
     logger.debug(f"Supervisor ha ricevuto 'next_agent': {next_agent}")
 
     # Validazione
-    if next_agent in ["RESEARCHER", "FINISH"]:
+    if next_agent in ["RESEARCHER", "GREETING"]:
         return next_agent
     else:
-        logger.warning(f"Risposta non valida dal modello: {next_agent}. Default a 'FINISH'.")
-        return "FINISH"
+        logger.warning(f"Risposta non valida dal modello: {next_agent}. Default a 'greeting'.")
+        return "GREETING"
 
 
 def get_last_user_message(messages: List[Dict[str, Any]]) -> str:
@@ -67,42 +61,36 @@ def get_last_user_message(messages: List[Dict[str, Any]]) -> str:
 def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "__end__"]]:
     try:
         last_user_message = get_last_user_message(state.get("user_messages", []))
+        logger.debug(f"Ultimo messaggio dell'utente: {last_user_message}")
+        
         if not last_user_message:
             logger.warning("Nessun messaggio dell'utente trovato.")
-            return Command(goto="__end__", update={"terminate": True})
+            return Command(goto=END, update={"terminate": True})
 
         next_agent = determine_next_agent(last_user_message)
         logger.debug(f"Supervisor ha determinato il prossimo agente: {next_agent}")
 
-        if next_agent == "FINISH":
-            return Command(
-                goto="__end__",
-                update={
-                    "terminate": True,
-                    "collected_info": last_user_message,
-                    "agent_messages": state.get("agent_messages", []) + [{"role": "assistant", "content": "Conversazione terminata."}]
-                }
-            )
-
-        elif next_agent.lower() == "researcher":
-            return Command(
-                goto="researcher",
-                update={
-                    "query": last_user_message, 
-                    "valid_query": True, 
-                    "agent_messages": state.get("agent_messages", []) + [{"role": "assistant", "content": "Sto cercando informazioni..."}]
-                }
-            )
-        elif next_agent.lower() == "greeting":
+        if next_agent == "GREETING":
             return Command(
                 goto="greeting",
                 update={
-                    "collected_info": last_user_message, 
+                    "collected_info": last_user_message,
                     "agent_messages": state.get("agent_messages", []) + [{"role": "assistant", "content": "Ciao! Come posso aiutarti?"}]
                 }
             )
+
+        elif next_agent == "RESEARCHER":
+            return Command(
+                goto="researcher",
+                update={
+                    "query": last_user_message,
+                    "agent_messages": state.get("agent_messages", []) + [{"role": "assistant", "content": "Sto eseguendo la tua richiesta di ricerca..."}]
+                }
+            )
+
         else:
-            return Command(goto="__end__", update={"terminate": True})
+            logger.warning(f"Agente determinato non valido: {next_agent}. Termino la conversazione.")
+            return Command(goto=END, update={"terminate": True})
     except Exception as e:
         logger.error(f"Errore nel supervisor_node: {e}")
-        return Command(goto="__end__", update={"terminate": True})
+        return Command(goto=END, update={"terminate": True})

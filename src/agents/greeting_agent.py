@@ -1,32 +1,29 @@
 # src/agents/greeting_agent.py
 
-from langgraph.graph import MessagesState
 from langgraph.types import Command
-from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
-import logging
 from typing import Literal
-
 from src.tools.llm_tools import generate_response
+import logging
+from langgraph.graph import END
 
 logger = logging.getLogger("GreetingAgent")
 
-llm = ChatOpenAI(model="gpt-3.5-turbo")
-
-# Creazione del greeting agent
-greeting_agent = create_react_agent(
-    llm, tools=[], state_modifier="Sei un assistente che fornisce risposte cordiali e riassuntive."
-)
 
 def greeting_node(state: dict) -> Command[Literal["__end__"]]:
+    logger.debug(f"Invoking greeting_node with state: {state}")
+
     collected_info = state.get("collected_info", "")
+    logger.debug(f"Collected Info: {collected_info}")
+    
     if not collected_info:
-        return Command(goto="__end__")
+        logger.debug("Nessuna informazione raccolta. Termino la conversazione.")
+        return Command(goto=END)
 
     try:
         assistant_response = generate_response(collected_info)
+        logger.debug(f"Risposta generata dall'assistente: {assistant_response}")
         return Command(
-            goto="__end__",
+            goto=END,
             update={
                 "agent_messages": state.get("agent_messages", []) + [
                     {"content": assistant_response, "role": "assistant"}
@@ -35,4 +32,4 @@ def greeting_node(state: dict) -> Command[Literal["__end__"]]:
         )
     except Exception as e:
         logger.error(f"Errore nel greeting_node: {e}")
-        return Command(goto="__end__")
+        return Command(goto=END)
