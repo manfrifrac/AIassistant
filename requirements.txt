@@ -10,3 +10,4 @@ pygame
 requests
 speechrecognition
 scikit-learn
+boto3

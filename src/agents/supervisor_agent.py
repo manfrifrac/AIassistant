@@ -64,7 +64,7 @@ def determine_next_agent(user_message: str, state: dict) -> str:
             return "GREETING"
 
         logger.debug(f"[DETERMINE_AGENT] Final decision: {next_agent}")
-        return {next_agent}
+        return next_agent  # Changed from `return {next_agent}`
 
     except Exception as e:
         logger.error(f"[DETERMINE_AGENT] Error: {str(e)}", exc_info=True)
@@ -88,7 +88,7 @@ def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "_
         if state.get("terminate", False):
             logger.debug("Richiesta di terminazione rilevata.")
             return Command(goto=END, update={})
-
+        
         # Verifica la presenza di messaggi dell'utente
         user_messages = state.get("user_messages", [])
         if not user_messages:
@@ -101,77 +101,39 @@ def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "_
             logger.warning("L'ultimo messaggio dell'utente è vuoto o non valido.")
             return Command(goto=END, update={"terminate": True})
 
-        # Controlla se la query è già stata gestita
-        if state.get("last_agent") == "researcher" and state.get("query") == last_user_message:
-            logger.debug("La query è stata già gestita. Termino il ciclo.")
-            relevant_messages = []
-            if state.get("agent_messages"):
-                relevant_messages = find_relevant_messages(state, last_user_message)
-            modified_response = ""
-            if state.get("research_result"):
-                modified_response = modify_response(state.get("research_result", ""))
-                relevant_messages.append({"role": "assistant", "content": state.get("research_result", "")})
-            state_updates = {
-                "last_user_message": last_user_message,
-                "relevant_messages": relevant_messages,
-                "modified_response": modified_response,
-            }
-            return Command(goto="greeting", update=state_updates)
-
         # Determina il prossimo agente con il nuovo contesto
         next_agent = determine_next_agent(last_user_message, state)
+        logger.debug(f"Tipo di agente determinato: {next_agent}")
         
-        # Prepara gli aggiornamenti di stato base
         state_updates = {
-            "last_agent": str(next_agent).lower(),  # Aggiorna l'ultimo agente
-            "next_agent": str(next_agent).lower(),  # Imposta il prossimo agente
+            "last_user_message": last_user_message,
+            "relevant_messages": find_relevant_messages(state, last_user_message),
         }
 
-        # Se l'ultimo agente era researcher, passa sempre attraverso greeting per processare la risposta
-        if state.get("last_agent") == "researcher":
-            logger.debug("Ultimo agente era researcher, processo la risposta con greeting")
-            relevant_messages = []
-            if state.get("agent_messages"):
-                relevant_messages = find_relevant_messages(state, last_user_message)
-            
-            modified_response = ""
-            if state.get("research_result"):
-                modified_response = modify_response(state.get("research_result", ""))
-                # Aggiungi il risultato della ricerca ai messaggi rilevanti
-                relevant_messages.append({"role": "assistant", "content": state.get("research_result", "")})
-            
-            state_updates.update({
-                "last_user_message": last_user_message,
-                "relevant_messages": relevant_messages,
-                "modified_response": modified_response,
-            })
-            return Command(goto="greeting", update=state_updates)
-        
-        # Altrimenti, procedi normalmente in base all'agente determinato
         if next_agent == "RESEARCHER":
-            state_updates["query"] = last_user_message
+            # Imposta la query nello stato
+            state_updates.update({
+                "last_agent": "researcher",
+                "query": last_user_message  # Changed from last_user_message['content']
+            })
+            logger.debug("Passaggio al ResearcherAgent.")
             return Command(goto="researcher", update=state_updates)
         
-        # Se è GREETING, prepara le informazioni rilevanti
-        relevant_messages = []
-        if state.get("agent_messages"):
-            relevant_messages = find_relevant_messages(state, last_user_message)
+        elif next_agent == "GREETING":
+            state_updates.update({
+                "last_agent": "greeting"
+            })
+            logger.debug("Passaggio al GreetingAgent.")
+            return Command(goto="greeting", update=state_updates)
         
-        modified_response = ""
-        if state.get("research_result"):
-            modified_response = modify_response(state.get("research_result", ""))
-        
-        state_updates.update({
-            "last_user_message": last_user_message,
-            "relevant_messages": relevant_messages,
-            "modified_response": modified_response,
-        })
-        
-        return Command(goto="greeting", update=state_updates)
-
+        else:
+            logger.warning("Tipo di agente non riconosciuto. Terminazione.")
+            return Command(goto=END, update={"terminate": True})
+    
     except Exception as e:
-        logger.error(f"Errore nel supervisor_node: {e}")
+        logger.error(f"Error: {str(e)}", exc_info=True)
         return Command(goto=END, update={"terminate": True})
+        logger.debug(f"[DETERMINE_AGENT] Input state: {state}")
 
 def modify_response(research_result: str) -> str:
     """Modifica la risposta utilizzando un prompt e un LLM."""
@@ -186,7 +148,7 @@ def modify_response(research_result: str) -> str:
     except Exception as e:
         logger.error(f"Errore durante la modifica della risposta: {e}")
         return research_result  # Fallback alla risposta originale
-
+    
 def find_relevant_messages(state: dict, last_user_message: str) -> List[Dict[str, Any]]:
     """Trova i messaggi rilevanti basati sull'ultimo messaggio dell'utente."""
     try:

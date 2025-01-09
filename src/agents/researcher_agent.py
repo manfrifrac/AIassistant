@@ -2,7 +2,7 @@
 from langgraph.graph import END
 from langgraph.types import Command
 from langchain_openai import ChatOpenAI
-from src.tools.llm_tools import perform_research
+from src.tools.llm_tools import perform_research, modify_response
 import logging
 from typing import Literal
 
@@ -22,6 +22,9 @@ def researcher_node(state: dict) -> Command[Literal["supervisor", "__end__"]]:
         # Recupera il risultato della ricerca
         research_result = perform_research(query)
 
+        # Modifica la risposta
+        modified_resp = modify_response(research_result)
+
         # Aggiorna lo stato senza perdere contesto
         updated_agent_messages = state.get("agent_messages", []) + [
             {"content": research_result, "role": "assistant"}
@@ -31,7 +34,8 @@ def researcher_node(state: dict) -> Command[Literal["supervisor", "__end__"]]:
             goto="supervisor",
             update={
                 "agent_messages": updated_agent_messages,
-                "research_result": research_result,  # Aggiungi il risultato della ricerca allo stato
+                "research_result": research_result,
+                "modified_response": modified_resp,  # Added modified_response
                 "query": "",  # Resetta la query dopo la ricerca
             },
         )

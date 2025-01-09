@@ -79,3 +79,17 @@ def semantic_search(vectors: np.ndarray, query: str, messages: List[Dict[str, An
     except Exception as e:
         logger.error(f"Errore durante la ricerca semantica: {e}")
         return []
+
+def modify_response(research_result: str) -> str:
+    """Modifica la risposta utilizzando un prompt e un LLM."""
+    try:
+        prompt = (
+            "Hai raccolto le seguenti informazioni: "
+            f"{research_result}. "
+            "Estrapola le informazioni più importanti e fornisci una risposta concisa e chiara."
+        )
+        response = llm.invoke(input=[{"role": "system", "content": prompt}])
+        return response.content.strip()
+    except Exception as e:
+        logger.error(f"Errore durante la modifica della risposta: {e}")
+        return research_result  # Fallback alla risposta originale

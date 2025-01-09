@@ -3,59 +3,69 @@ import logging
 import os
 import tempfile
 from pydub import AudioSegment
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
 logger = logging.getLogger("TTS")
 
-def generate_speech(text, language="it", speed=200, voice=None) -> str:
+# Initialize Polly client once to improve performance
+polly_client = boto3.Session(
+    aws_access_key_id='AKIAVTDS55OXNR7TEEQV',
+    aws_secret_access_key='JlTTqLGyg9FsvR/aBO8G/w8X6/oMvN8TdkDbbU0y',
+    region_name='eu-west-3'  # Specify your region here
+).client('polly')
+
+def create_ssml(text: str, rate: int = 100, pitch: str = "+0st", volume: str = "medium") -> str:
+    """Genera una stringa SSML con controlli di prosodia per una voce più naturale."""
+    return f"""
+    <speak>
+        <prosody rate="{rate}%" pitch="{pitch}" volume="{volume}">
+            {text}
+        </prosody>
+    </speak>
     """
-    Genera parlato da testo utilizzando pyttsx3 e converte in WAV.
+    
+def generate_speech(text, language="it", speed=130, voice="Bianca") -> str:
+    """
+    Genera parlato da testo utilizzando Amazon Polly e converte in WAV.
     :param text: Il testo da convertire in parlato.
     :param language: La lingua da utilizzare (es. "it" per italiano).
-    :param speed: La velocità del parlato (default: 150 WPM).
-    :param voice: Il nome o ID della voce (opzionale).
+    :param speed: La velocità del parlato.
+    :param voice: Il nome della voce da utilizzare (opzionale).
     :return: Percorso al file WAV generato.
     """
     try:
-        # Inizializza il motore di sintesi vocale
-        engine = pyttsx3.init()
-        voices = engine.getProperty('voices')
-        
         # Configura la voce
-        if voice:
-            engine.setProperty('voice', voice)
-        else:
-            # Trova una voce italiana se possibile
-            italian_voice = next((v.id for v in voices if 'italian' in v.name.lower()), None)
-            if italian_voice:
-                engine.setProperty('voice', italian_voice)
-            else:
-                logger.warning("Voce italiana non trovata, usando la voce di default.")
+        voice_id = voice if voice else 'Bianca'  # Bianca è una voce italiana in Polly
         
-        # Configura la velocità del parlato
-        engine.setProperty('rate', speed)
+        # Utilizza SSML per controllare intonazione, volume ed enfasi
+        ssml_text = create_ssml(text, rate=speed, volume="medium")
         
-        # Genera il parlato in un file temporaneo
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_wav:
-            wav_file = tmp_wav.name
+        response = polly_client.synthesize_speech(
+            TextType='ssml',
+            Text=ssml_text,
+            OutputFormat='mp3',
+            VoiceId=voice_id
+        )
         
-        engine.save_to_file(text, wav_file)
-        engine.runAndWait()
+        # Salva il parlato in un file temporaneo
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_mp3:
+            tmp_mp3.write(response['AudioStream'].read())
+            mp3_file = tmp_mp3.name
         
-        if os.path.exists(wav_file):
-            logger.debug(f"Parlato generato correttamente in {wav_file}")
-        else:
-            logger.error(f"Errore: il file {wav_file} non è stato creato.")
-            return ""
+        logger.debug(f"Parlato generato correttamente in {mp3_file}")
         
-        # Converti in formato WAV standard (se necessario)
-        standardized_wav = os.path.splitext(wav_file)[0] + "_standard.wav"
-        sound = AudioSegment.from_file(wav_file)
+        # Converti in formato WAV standard
+        standardized_wav = os.path.splitext(mp3_file)[0] + "_standard.wav"
+        sound = AudioSegment.from_file(mp3_file, format="mp3")
         sound.export(standardized_wav, format="wav")
-        logger.debug(f"Parlato convertito in WAV standard in {standardized_wav}")
         
-        # Rimuovi il file WAV originale
-        os.remove(wav_file)
+        # Rimuovi il file MP3 originale
+        os.remove(mp3_file)
         return standardized_wav
+    except (BotoCoreError, ClientError) as error:
+        logger.error(f"Errore durante la generazione del parlato con Polly: {error}")
+        return ""
     except Exception as e:
         logger.error(f"Errore durante la generazione del parlato: {e}")
         return ""

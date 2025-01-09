@@ -34,14 +34,6 @@ builder.add_conditional_edges(
     )
 )
 
-# Define conditional edges from researcher
-builder.add_conditional_edges(
-    source="researcher",
-    path=lambda state: (
-        END if state.get("terminate", False)
-        else "supervisor"
-    )
-)
 
 # Define edges from greeting
 builder.add_edge("greeting", END)
