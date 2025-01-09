@@ -1,6 +1,10 @@
 import logging
 from src.voice_assistant import VoiceAssistant
 import sys
+from langgraph.types import Command
+from typing import Literal
+from src.tools.llm_tools import generate_response
+from langgraph.graph import END  # Importa END se necessario
 
 def main():
     logging.basicConfig(
@@ -22,24 +26,28 @@ def main():
     logging.getLogger("LangGraphSetup").setLevel(logging.DEBUG)
     logging.getLogger("StateManager").setLevel(logging.DEBUG)
     logging.getLogger("VoiceAssistant").setLevel(logging.DEBUG)
-    logging.getLogger("supervisor_agent").setLevel(logging.DEBUG)
-    logging.getLogger("researcher_agent").setLevel(logging.DEBUG)
-    logging.getLogger("greeting_agent").setLevel(logging.DEBUG)
-    logging.getLogger("LLMTools").setLevel(logging.DEBUG)
+    logging.getLogger("SupervisorAgent").setLevel(logging.DEBUG)
+    logging.getLogger("ResearcherAgent").setLevel(logging.DEBUG)
+    logging.getLogger("GreetingAgent").setLevel(logging.DEBUG)
+    logging.getLogger("LLMTools").setLevel(logging.WARNING)
     logging.getLogger("PythonREPLTool").setLevel(logging.DEBUG)
     logging.getLogger("SpotifyTools").setLevel(logging.DEBUG)
     logging.getLogger("TTS").setLevel(logging.DEBUG)
-    logging.getLogger("AudioHandler").setLevel(logging.DEBUG)
+    logging.getLogger("AudioHandler").setLevel(logging.WARNING)
     logging.getLogger("ErrorHandler").setLevel(logging.DEBUG)
     logging.getLogger("StateManager").setLevel(logging.DEBUG)
 
     assistant = VoiceAssistant()
     try:
-        assistant.run()
+        while True:
+            thread_id = input("Inserisci un thread ID (o premi Enter per continuare): ")
+            if thread_id:
+                assistant.set_thread_id(thread_id)
+            assistant.run()
     except KeyboardInterrupt:
-        logging.info("Voice Assistant terminated by user.")
+        logging.info("Voice Assistant terminato dall'utente.")
     finally:
-        logging.info("Closing Voice Assistant.")
+        logging.info("Chiusura del Voice Assistant.")
 
 if __name__ == "__main__":
     main()

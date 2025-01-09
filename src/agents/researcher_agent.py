@@ -1,36 +1,41 @@
 # src/agents/researcher_agent.py
-
+from langgraph.graph import END
 from langgraph.types import Command
 from langchain_openai import ChatOpenAI
 from src.tools.llm_tools import perform_research
 import logging
 from typing import Literal
-from langgraph.graph import END
 
 logger = logging.getLogger("ResearcherAgent")
 
 llm = ChatOpenAI(model="gpt-3.5-turbo")
 
 
-def researcher_node(state: dict) -> Command[Literal["greeting"]]:
+# src/agents/researcher_agent.py
+
+def researcher_node(state: dict) -> Command[Literal["supervisor", "__end__"]]:
     query = state.get("query", "").strip()
-    logger.debug(f"Researcher Agent riceve la query: {query}")
-    
     if not query:
-        logger.warning("La query è vuota. Termino la conversazione.")
         return Command(goto=END, update={"terminate": True})
 
     try:
+        # Recupera il risultato della ricerca
         research_result = perform_research(query)
-        logger.debug(f"Risultati della ricerca: {research_result}")
+
+        # Aggiorna lo stato senza perdere contesto
+        updated_agent_messages = state.get("agent_messages", []) + [
+            {"content": research_result, "role": "assistant"}
+        ]
+
         return Command(
-            goto="greeting",
+            goto="supervisor",
             update={
-                "agent_messages": state.get("agent_messages", []) + [
-                    {"content": research_result, "role": "assistant"}
-                ]
-            }
+                "agent_messages": updated_agent_messages,
+                "research_result": research_result,  # Aggiungi il risultato della ricerca allo stato
+                "query": "",  # Resetta la query dopo la ricerca
+            },
         )
+
     except Exception as e:
-        logger.error(f"Errore nel nodo Researcher: {e}")
+        logger.error(f"Errore nel nodo researcher: {e}")
         return Command(goto=END, update={"terminate": True})

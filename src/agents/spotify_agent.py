@@ -6,7 +6,7 @@ import logging
 
 logger = logging.getLogger("SpotifyAgent")
 
-def spotify_agent(state: MessagesState) -> Command[Literal["greeting_agent"]]:
+def spotify_agent(state: MessagesState) -> Command[Literal["greeting", "__end__"]]:
     """
     Gestisce la ricerca e analisi di tracce su Spotify.
     """
@@ -17,7 +17,7 @@ def spotify_agent(state: MessagesState) -> Command[Literal["greeting_agent"]]:
         response_message = "La query di ricerca è vuota. Fornisci un titolo o un artista."
         logger.warning(response_message)
         state["last_agent_response"] = response_message
-        return Command(goto="greeting_agent", update={})
+        return Command(goto="greeting", update={})  # Cambiato da "greeting_agent" a "greeting"
 
     # Ricerca tracce su Spotify
     try:
@@ -31,5 +31,4 @@ def spotify_agent(state: MessagesState) -> Command[Literal["greeting_agent"]]:
 
     logger.debug(f"Spotify Agent aggiorna il messaggio: {response_message}")
     state["last_agent_response"] = response_message
-    return Command(goto="greeting_agent", update={})
-
+    return Command(goto="greeting", update={})  # Cambiato da "greeting_agent" a "greeting"

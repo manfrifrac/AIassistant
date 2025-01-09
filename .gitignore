@@ -44,3 +44,5 @@ ENV/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+models/

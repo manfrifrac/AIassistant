@@ -1,4 +1,6 @@
-import pygame
+# src/audio/audio_handler.py
+
+import simpleaudio as sa
 from src.audio.audio_cache import AudioCache
 from src.tts import generate_speech
 import logging
@@ -8,7 +10,6 @@ logger = logging.getLogger("AudioHandler")
 
 class AudioHandler:
     def __init__(self):
-        pygame.mixer.init()
         self.cache = AudioCache()
 
     def speak(self, text: str):
@@ -22,11 +23,23 @@ class AudioHandler:
 
             if os.path.exists(audio_file):
                 logger.debug(f"Riproduzione audio: {audio_file}")
-                pygame.mixer.music.load(audio_file)
-                pygame.mixer.music.play()
+                
+                # Normalizza il percorso per Windows
+                normalized_path = os.path.normpath(audio_file)
+                logger.debug(f"Piattaforma Normalizzata Path: {normalized_path}")
+                
+                # Riproduci il file WAV
+                wave_obj = sa.WaveObject.from_wave_file(normalized_path)
+                play_obj = wave_obj.play()
+                play_obj.wait_done()
+                logger.debug(f"File audio riprodotto: {normalized_path}")
 
-                while pygame.mixer.music.get_busy():
-                    pygame.time.Clock().tick(10)
+                # Rimuovi il file dopo la riproduzione
+                try:
+                    os.remove(audio_file)
+                    logger.debug(f"File audio rimosso dopo la riproduzione: {audio_file}")
+                except PermissionError as pe:
+                    logger.error(f"Errore nella rimozione del file audio: {pe}")
             else:
                 logger.error("Errore: file audio non trovato.")
         except Exception as e:

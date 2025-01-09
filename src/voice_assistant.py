@@ -13,48 +13,44 @@ class VoiceAssistant:
         self.listening = True
         self.state_manager = StateManager()
         self.audio_handler = AudioHandler()
+        self.thread_id = "default-thread"  # Identificativo del thread
         logger.debug("VoiceAssistant inizializzazione completata.")
+
+    def set_thread_id(self, thread_id: str):
+        """Imposta un nuovo thread ID per la conversazione."""
+        self.thread_id = thread_id
+        logger.info(f"Thread ID impostato su: {self.thread_id}")
 
     def process_command(self, command: str):
         """Elabora il comando trascritto."""
         try:
-            # Crea una copia dello stato attuale
+            # Configura il RunnableConfig con il thread ID
+            config = {"configurable": {"thread_id": self.thread_id}}
+
+            # Crea una copia dello stato corrente
             state = self.state_manager.state.copy()
             logger.debug(f"Stato iniziale: {state}")
 
             # Aggiungi il messaggio dell'utente
             state["user_messages"].append({"content": command, "role": "user"})
-            logger.debug(f"user_messages aggiornati: {state['user_messages']}")
 
-            # Invoca il grafo e ottieni lo stato aggiornato
-            updated_state = graph.invoke(state)
+            # Invoca il grafo con MemorySaver
+            updated_state = graph.invoke(state, config=config)
             logger.debug(f"Stato aggiornato dal grafo: {updated_state}")
 
-            # Aggiorna lo stato interno con lo stato aggiornato
+            # Aggiorna lo stato interno
             self.state_manager.state = updated_state
-            logger.debug(f"Stato dopo l'aggiornamento: {self.state_manager.state}")
-
-            # Recupera il messaggio dell'assistente
             assistant_message = self.state_manager.get_assistant_message()
-            logger.debug(f"Messaggio dell'assistente recuperato: {assistant_message}")
 
+            # Genera una risposta se non disponibile
             if not assistant_message:
-                # Se non c'è risposta, usa una risposta predefinita
-                assistant_message = "Mi dispiace, non sono sicuro di aver capito. Puoi ripetere, per favore?"
+                assistant_message = "Mi dispiace, non sono sicuro di aver capito. Puoi ripetere?"
                 self.state_manager.state["agent_messages"].append({"content": assistant_message, "role": "assistant"})
-                logger.debug(f"Messaggio predefinito aggiunto: {assistant_message}")
-            else:
-                # Aggiungi la risposta generata a `agent_messages`
-                self.state_manager.state["agent_messages"].append({"content": assistant_message, "role": "assistant"})
-                logger.debug(f"Messaggio dell'assistente aggiunto a agent_messages: {assistant_message}")
-
-            logger.debug(f"Messaggio dell'assistente: {assistant_message}")
-            logger.debug(f"agent_messages aggiornati: {self.state_manager.state['agent_messages']}")
 
             # Riproduci il messaggio
             self.audio_handler.speak(assistant_message)
 
-            # Controlla se la conversazione deve terminare
+            # Termina la conversazione se richiesto
             if self.state_manager.state.get("terminate", False):
                 logger.info("Terminazione della conversazione richiesta.")
                 self.listening = False
@@ -62,8 +58,7 @@ class VoiceAssistant:
         except Exception as e:
             ErrorHandler.handle_error(e, "Errore durante l'elaborazione del comando")
             self.audio_handler.speak("Si è verificato un errore. Prova di nuovo.")
-
-
+    
 
     def listen_and_process(self):
         """Ascolta il comando vocale e lo elabora."""

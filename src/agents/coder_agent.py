@@ -1,5 +1,3 @@
-# src/agents/coder_agent.py
-
 from langgraph.graph import MessagesState
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, AIMessage  # Assicurati che AIMessage sia importato correttamente
@@ -8,6 +6,7 @@ from src.tools.custom_tools import python_repl_tool
 from langgraph.prebuilt import create_react_agent
 import logging
 from langchain_openai import ChatOpenAI
+from langgraph.graph import END  # Importa END se necessario
 
 logger = logging.getLogger("CoderAgent")
 
@@ -23,9 +22,9 @@ def coder_node(state: MessagesState) -> Command[Literal["supervisor", "__end__"]
         # Supponiamo che 'result' sia un AIMessage
         user_message = state.get_last_user_message().content.lower()
         if "fine" in user_message or "termina" in user_message:
-            return Command(goto="__end__")
+            return Command(goto=END, update={"terminate": True})  # Usare END invece di "__end__"
         else:
             return Command(goto="supervisor")
     except Exception as e:
         logger.error(f"Errore nel coder_node: {e}")
-        return Command(goto="__end__")
+        return Command(goto=END, update={"terminate": True})  # Usare END invece di "__end__"
