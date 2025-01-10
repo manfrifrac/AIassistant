@@ -1,61 +1,47 @@
-import logging
 from src.voice_assistant import VoiceAssistant
-import sys
-from langgraph.types import Command
-from typing import Literal
-from src.tools.llm_tools import generate_response, save_to_long_term_memory  # Ensure correct import
-from langgraph.graph import END  # Importa END se necessario
-from src.memory_store import MemoryStore  # Importa MemoryStore
 from src.state.state_manager import StateManager
-from src.state.state_schema import StateSchema  # Importa StateSchema
+from src.state.state_schema import StateSchema
+from src.utils.log_config import setup_logging
+import logging
 
 def main():
-    logging.basicConfig(
-        level=logging.INFO,  # Cambiato da DEBUG a INFO
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler("logs/app.log", mode="a", encoding="utf-8"),
-        ]
-    )
-    logging.getLogger("openai").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    # Riduci la verbosità dei log di gtts e urllib3
-    logging.getLogger("gtts").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-    # Altri loggers specifici
-    logging.getLogger("gtts.tts").setLevel(logging.WARNING)
-
-    logging.getLogger("LangGraphSetup").setLevel(logging.DEBUG)
-    logging.getLogger("StateManager").setLevel(logging.INFO)
-    logging.getLogger("VoiceAssistant").setLevel(logging.DEBUG)
-    logging.getLogger("SupervisorAgent").setLevel(logging.INFO)
-    logging.getLogger("ResearcherAgent").setLevel(logging.INFO)
-    logging.getLogger("GreetingAgent").setLevel(logging.INFO)
-    logging.getLogger("LLMTools").setLevel(logging.WARNING)
-    logging.getLogger("PythonREPLTool").setLevel(logging.DEBUG)
-    logging.getLogger("SpotifyTools").setLevel(logging.DEBUG)
-    logging.getLogger("TTS").setLevel(logging.INFO)
-    logging.getLogger("AudioHandler").setLevel(logging.WARNING)
-    logging.getLogger("ErrorHandler").setLevel(logging.DEBUG)
-    state_manager = StateManager()
-    state_manager.set_state_schema(StateSchema)  # Passa il tipo, non un'istanza
-    assistant = VoiceAssistant(state_manager)  # Pass StateManager instance
-
+    debug_mode = True  # Esplicita l'impostazione
+    
+    # Setup logging con debug mode
+    setup_logging(global_debug_mode=debug_mode)
+    logger = logging.getLogger(__name__)
+    
+    # Verifica il livello di logging
+    print(f"Main logger level: {logger.getEffectiveLevel()}")
+    print(f"Root logger level: {logging.getLogger().getEffectiveLevel()}")
+    
+    logger.debug("Debug logging test message")  # Questo messaggio apparirà solo se debug_mode è True
+    logger.info("Starting Voice Assistant")
+    
     try:
+        state_manager = StateManager()
+        state_manager.set_state_schema(StateSchema)
+        assistant = VoiceAssistant(state_manager)
+        
+        logger.debug("Stato iniziale: %s", state_manager.state)
+
         iteration = 0
-        max_iterations = 10  # Define a maximum number of iterations
+        max_iterations = 10
         while iteration < max_iterations and assistant.listening:
             assistant.run()
             iteration += 1
+            
         if iteration >= max_iterations:
-            logging.warning("Numero massimo di iterazioni raggiunto. Terminazione forzata.")
+            logger.warning("Maximum iterations reached. Forced termination.")
+            
     except KeyboardInterrupt:
-        logging.info("Voice Assistant terminato dall'utente.")
+        logger.info("Voice Assistant terminated by user.")
+    except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
     finally:
-        # Salva la memoria a lungo termine prima di chiudere
         assistant.update_state("")
-        logging.info("Chiusura del Voice Assistant.")
+        logger.debug("Stato dopo update_state: %s", state_manager.state)
+        logger.info("Voice Assistant shutdown complete.")
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,7 @@ from sklearn.neighbors import NearestNeighbors
 from sentence_transformers import SentenceTransformer
 from src.state.state_schema import manage_short_term_memory, manage_long_term_memory  # Import memory management functions
 
-logger = logging.getLogger("MemoryStore")
+logger = logging.getLogger(__name__)
 
 # Inizializza il modello di embedding
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -69,7 +69,7 @@ class PersistentStore:
                 WHERE namespace = %s AND data::text ILIKE %s;
             """, (namespace, f"%{query}%"))
             results = cursor.fetchall()
-            logger.debug(f"Search results in long-term memory for '{query}': {results}")
+            #logger.debug(f"Search results in long-term memory for '{query}': {results}")
             return results
 
 class LongTermStore:
@@ -161,15 +161,32 @@ class MemoryStore:
         logger.debug(f"Ultimo thread_id recuperato: {last_thread}")
         return last_thread
 
-    def manage_short_term(self, existing: list, updates: Union[dict, str]) -> list:
-        """Gestisci la memoria a breve termine."""
-        if isinstance(updates, str):
-            updates = {"messages": [updates]}
-        return manage_short_term_memory(existing, updates.get("messages", []))
+    def manage_short_term(self, existing: list, new_items: list) -> list:
+        """Manages short-term memory keeping only recent, unique items."""
+        return manage_short_term_memory(existing, new_items)
 
-    def manage_long_term(self, existing: dict, updates: dict) -> dict:
-        """Gestisci la memoria a lungo termine."""
-        return manage_long_term_memory(existing, updates)
+    def manage_long_term(self, existing: dict, new_items: dict) -> dict:
+        """Manages long-term memory ensuring proper merging of data."""
+        return manage_long_term_memory(existing, new_items)
+
+    def extract_relevant_info(self, message_data: dict) -> dict:
+        """Extracts information worth storing long-term."""
+        relevant = {}
+        
+        # Store messages with specific keywords or patterns
+        msg = message_data.get("user_message", "").lower()
+        keywords = ["remember", "important", "save", "profile", "preference"]
+        if any(key in msg for key in keywords):
+            relevant["user_preferences"] = message_data
+            
+        # Store research results
+        if message_data.get("context", {}).get("research_result"):
+            relevant["research_history"] = {
+                "query": message_data["context"]["query"],
+                "result": message_data["context"]["research_result"]
+            }
+            
+        return relevant
 
     def update_short_term(self, memory: list) -> list:
         """Trim short-term memory to the last 100 messages."""

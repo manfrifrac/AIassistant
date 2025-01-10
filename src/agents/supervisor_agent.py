@@ -87,8 +87,17 @@ def get_last_user_message(messages: List[Dict[str, Any]]) -> str:
         logger.error(f"Errore durante l'estrazione dell'ultimo messaggio utente: {e}")
         return ""
 
-def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "__end__"]]:
+def _format_debug_state(state: dict) -> dict:
+    """Formatta lo stato per debug log"""
+    return {
+        'last_message': state.get('last_user_message', ''),
+        'next_agent': state.get('next_agent', ''),
+        'processed_count': len(state.get('processed_messages', []))
+    }
+
+def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "manage_memory", "__end__"]]:
     try:
+        logger.debug(f"Supervisor state: {state}")  # Added state argument
         # Initialize 'processed_messages' if not present
         if "processed_messages" not in state:
             state["processed_messages"] = []
@@ -98,20 +107,20 @@ def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "_
         user_messages = state.get("user_messages", [])
         if not user_messages:
             logger.warning("No user messages found in state.")
-            return Command(goto=END, update={"terminate": True})
+            return Command(goto="manage_memory", update={"terminate": False})
 
         # Retrieve the last user message
         last_user_message = get_last_user_message(user_messages)
         if not last_user_message:
             logger.warning("The last user message is empty or invalid.")
-            return Command(goto=END, update={"terminate": True})
+            return Command(goto="manage_memory", update={"terminate": False})
 
-        logger.debug(f"Last user message: {last_user_message}")
+        logger.debug(f"Last user message: {last_user_message}")  # Added last_user_message argument
 
         # Check if the message has already been processed
         if last_user_message in state["processed_messages"]:
             logger.debug("The user message has already been processed. No action needed.")
-            return Command(goto=END, update={})
+            return Command(goto="manage_memory", update={})
 
         # Retrieve information from long-term memory
         thread_id = state.get("thread_id", "default-thread")
@@ -126,43 +135,39 @@ def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "_
 
         # Determine the next agent with the new context
         next_agent = determine_next_agent(last_user_message, state)
-        logger.debug(f"Determined agent type: {next_agent}")
+        logger.debug(f"Determined agent type: {next_agent}")  # Added next_agent argument
         
         state_updates = {
             "last_user_message": last_user_message,
             "relevant_messages": find_relevant_messages(state, last_user_message),
+            "processed_messages": state.get("processed_messages", []) + [last_user_message]
         }
 
         if next_agent == "RESEARCHER":
             state_updates.update({
                 "last_agent": "researcher",
-                "query": last_user_message
+                "query": last_user_message,
+                "next_agent": "manage_memory"  # Set next transition
             })
-            # Example: Save the query to long-term memory
-            memory_store.save_to_long_term_memory("user_queries", last_user_message, {"query": last_user_message})
+            logger.debug("Moving to researcher node")
+            return Command(goto="researcher", update=state_updates)
+            
         elif next_agent == "GREETING":
             state_updates.update({
-                "last_agent": "greeting"
+                "last_agent": "greeting",
+                "next_agent": "manage_memory"  # Set next transition
             })
-            # Example: Update the user profile
-            memory_store.save_to_long_term_memory("user_profiles", thread_id, {"last_greeting": last_user_message})
+            logger.debug("Moving to greeting node")
+            return Command(goto="greeting", update=state_updates)
+            
         else:
-            logger.warning("Unrecognized agent type. Terminating.")
-            return Command(goto=END, update={"terminate": True})
-
-        # Add the message to the processed list only once
-        processed = state.get("processed_messages", [])
-        if last_user_message not in processed:
-            processed.append(last_user_message)
-            state_updates["processed_messages"] = processed
-            logger.debug(f"Added to processed_messages: {last_user_message}")
-            logger.debug(f"Updated processed_messages: {state_updates['processed_messages']}")
-
-        return Command(goto=next_agent.lower(), update=state_updates)
+            logger.warning(f"Unrecognized agent type: {next_agent}")
+            state_updates["next_agent"] = "manage_memory"
+            return Command(goto="manage_memory", update=state_updates)
 
     except Exception as e:
-        logger.error(f"Error: {str(e)}", exc_info=True)
-        return Command(goto=END, update={"terminate": False})  # Ensure terminate remains False
+        logger.error(f"Error in supervisor: {e}", exc_info=True)
+        return Command(goto="manage_memory", update={"terminate": False})
 
 def find_relevant_messages(state: dict, last_user_message: str) -> List[Dict[str, Any]]:
     """Trova i messaggi rilevanti basati sull'ultimo messaggio dell'utente."""
@@ -173,11 +178,11 @@ def find_relevant_messages(state: dict, last_user_message: str) -> List[Dict[str
             logger.debug("Nessun messaggio precedente trovato.")
             return []
         vectors = vectorize_messages(previous_messages)
-        logger.debug(f"Vettori dei messaggi: {vectors}")
+        #logger.debug(f"Vettori dei messaggi: {vectors}")
 
         # Trova i messaggi rilevanti utilizzando una ricerca semantica
         relevant_messages = semantic_search(vectors, last_user_message, previous_messages)
-        logger.debug(f"Messaggi rilevanti trovati: {relevant_messages}")
+        logger.debug(f"Messaggi rilevanti trovati: {relevant_messages}")  # Added relevant_messages argument
         return relevant_messages
     except ValueError as e:
         logger.error(f"Errore durante la ricerca dei messaggi rilevanti: {e}")

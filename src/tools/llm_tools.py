@@ -66,7 +66,7 @@ def semantic_search(vectors: np.ndarray, query: str, messages: List[Dict[str, An
         query_vector = model.encode([query])
         num_samples = len(messages)
         if num_samples == 0:
-            logger.debug("Nessun messaggio da cercare")
+            logger.debug("Nessun messaggio disponibile per la ricerca semantica.")
             return []
         
         # Usa al massimo 3 vicini e comunque non più del numero di messaggi disponibili
@@ -91,6 +91,7 @@ def semantic_search(vectors: np.ndarray, query: str, messages: List[Dict[str, An
 def modify_response(research_result: str) -> str:
     """Modifica la risposta utilizzando un prompt e un LLM."""
     try:
+        logger.debug(f"Modificando la risposta con il risultato della ricerca: {research_result}")
         # Implementa la logica di modifica della risposta
         modified = f"Modificata: {research_result}"
         logger.debug(f"Risposta modificata: {modified}")

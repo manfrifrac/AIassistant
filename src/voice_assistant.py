@@ -15,11 +15,11 @@ logger = logging.getLogger("VoiceAssistant")
 class VoiceAssistant:
     def __init__(self, state_manager: StateManager):
         self.listening = True
-        self.state_manager = state_manager  # Use external StateManager
+        self.state_manager = state_manager
         self.audio_handler = AudioHandler()
-        self.memory_store = MemoryStore()  # Inizializza MemoryStore
-        self.thread_id = self.generate_thread_id()  # Imposta thread_id automaticamente
-        logger.debug("VoiceAssistant inizializzazione completata.")
+        self.memory_store = MemoryStore()
+        self.thread_id = self.generate_thread_id()
+        logger.debug("VoiceAssistant initialization completed.")
 
     def generate_thread_id(self) -> str:
         """Genera un thread_id sequenziale basato sui thread esistenti."""
@@ -35,17 +35,24 @@ class VoiceAssistant:
             # Configura il RunnableConfig con il thread ID
             config = {"configurable": {"thread_id": self.thread_id}}
 
+            # Log dello stato iniziale formattato
+            formatted_state = {k: v for k, v in self.state_manager.state.items() if not isinstance(v, (list, dict)) or len(str(v)) < 100}
+            logger.debug("Stato iniziale: %s", formatted_state)
+
+            # Log del comando utente
+            logger.debug("Aggiunto messaggio utente: %s", command)
+
             # Crea una copia dello stato corrente
             state = self.state_manager.state.copy()
-            logger.debug(f"Stato iniziale: {state}")
+            logger.debug("Stato iniziale: %s", state)  # Added state argument
 
             # Aggiungi il messaggio dell'utente
             state["user_messages"].append({"role": "user", "content": command})
-            logger.debug(f"Aggiunto messaggio utente: {command}")
+            logger.debug("Aggiunto messaggio utente: %s", command)
 
             # Esegui il grafo
             command_result = graph.invoke(state, config=config)
-            logger.debug(f"Risultato dell'esecuzione del grafo: {command_result}")
+            logger.debug("Risultato dell'esecuzione del grafo: %s", command_result)  # Added command_result argument
 
             # **Update the entire state instead of extracting 'update'**
             if not isinstance(command_result, dict):
@@ -55,7 +62,7 @@ class VoiceAssistant:
             self.state_manager.update_state(command_result)
             
             # **Add logging for updated state**
-            logger.debug(f"Stato dopo update_state: {self.state_manager.state}")
+            logger.debug("Stato dopo update_state: %s", self.state_manager.state)  # Added state_manager.state argument
 
             # Usa MemoryStore direttamente
             self.memory_store.save_to_long_term_memory("session_logs", self.thread_id, self.state_manager.state)
@@ -73,8 +80,7 @@ class VoiceAssistant:
                 logger.warning("Messaggio dell'assistente è vuoto. Nessun audio da riprodurre.")
 
         except Exception as e:
-            logger.error(f"Errore nell'elaborazione del comando: {e}")
-            ErrorHandler.handle(e)
+            logger.error(f"Errore nell'elaborazione del comando: {e}", exc_info=True)
 
     def update_state(self, last_user_message: str):
         """Aggiorna lo stato con la memoria a breve e lungo termine."""

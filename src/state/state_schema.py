@@ -7,32 +7,40 @@ from typing_extensions import Annotated
 import json  # Ensure json is imported if used elsewhere
 
 def manage_list(old: list, new: list) -> list:
-    """Combina due liste aggiungendo elementi senza duplicati."""
+    """Combines lists without duplicates, maintaining order."""
     combined = old + new
     unique = []
     seen = set()
     for item in combined:
-        # Serialize dicts to JSON strings for hashing, keep other types as is
-        item_key = json.dumps(item, sort_keys=True) if isinstance(item, dict) else item
+        item_key = str(item) if not isinstance(item, dict) else str(sorted(item.items()))
         if item_key not in seen:
             seen.add(item_key)
             unique.append(item)
     return unique
 
+# Fix reducer signatures to match (a, b) -> c pattern
 def manage_short_term_memory(old: list, new: list) -> list:
-    """Aggiorna la memoria a breve termine limitando il numero di messaggi."""
-    combined = old + new
-    # Mantiene solo gli ultimi 100 messaggi
-    return combined[-100:]
+    """Updates short-term memory maintaining only recent messages."""
+    combined = manage_list(old, new)
+    # Keep only last 10 items internally
+    return combined[-10:]
 
 def manage_long_term_memory(old: dict, new: dict) -> dict:
-    """Aggiorna la memoria a lungo termine."""
-    return {**old, **new}
+    """Updates long-term memory by merging dictionaries."""
+    updated = old.copy()
+    for key, value in new.items():
+        if key in updated and isinstance(updated[key], list):
+            updated[key] = manage_list(updated[key], [value])
+        else:
+            updated[key] = value
+    return updated
 
 class StateSchema(TypedDict, total=False):
-    user_messages: List[Dict[str, Any]]
-    agent_messages: Annotated[list, manage_list]  # Messaggi generati dall'agente con reducer
-    processed_messages: Annotated[List[str], manage_list]  # Modificato per contenere solo testi
+    user_messages: Annotated[List[Dict[str, Any]], manage_list]
+    agent_messages: Annotated[List[Dict[str, Any]], manage_list]
+    processed_messages: Annotated[List[str], manage_list]
+    short_term_memory: Annotated[List[Dict[str, Any]], manage_short_term_memory]
+    long_term_memory: Annotated[Dict[str, Any], manage_long_term_memory]
     should_research: bool
     terminate: bool
     valid_query: bool
@@ -44,6 +52,4 @@ class StateSchema(TypedDict, total=False):
     last_user_message: str  # Aggiungi l'ultimo messaggio dell'utente
     relevant_messages: List[Dict[str, Any]]  # Aggiungi i messaggi rilevanti
     modified_response: str  # Aggiungi la risposta modificata
-    short_term_memory: Annotated[list, manage_short_term_memory]
-    long_term_memory: Annotated[dict, manage_long_term_memory]  # Added long_term_memory
     # Optional: Add fallback-related fields if necessary

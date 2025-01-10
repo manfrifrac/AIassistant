@@ -46,3 +46,5 @@ ENV/
 .ipynb_checkpoints/
 
 models/
+.vscode/
+launch.json

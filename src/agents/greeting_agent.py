@@ -7,7 +7,7 @@ from langgraph.graph import END  # Importa END se necessario
 logger = logging.getLogger("GreetingAgent")
 
 def greeting_node(state: dict) -> Command[Literal["__end__"]]:
-    logger.debug(f"Invoking greeting_node with state: {state}")
+    logger.debug(f"Invoking greeting_node with state: {state}")  # Added state argument
 
     # Recupera l'ultimo messaggio dell'utente, i messaggi rilevanti e la risposta modificata
     last_user_message = state.get("last_user_message", "")
@@ -15,7 +15,7 @@ def greeting_node(state: dict) -> Command[Literal["__end__"]]:
     modified_response = state.get("modified_response", "")
 
     logger.debug(f"Last user message: {last_user_message}")
-    logger.debug(f"Relevant messages: {relevant_messages}")
+    logger.debug(f"Messaggi rilevanti trovati: {relevant_messages}")  # Added relevant_messages argument
     logger.debug(f"Modified response: {modified_response}")
 
     # Genera una risposta contestuale basata sui messaggi rilevanti
@@ -23,9 +23,9 @@ def greeting_node(state: dict) -> Command[Literal["__end__"]]:
         # Combina i messaggi rilevanti in ordine cronologico
         conversation_history = relevant_messages + [{"role": "user", "content": last_user_message}]
         conversation_text = "\n".join(
-            [f"{msg['role']}: {msg['content']}" for msg in conversation_history if isinstance(msg, dict)]
+            [f"{msg['role']}:{msg['content']}" for msg in conversation_history if isinstance(msg, dict)]
         )
-        logger.debug(f"Conversation history:\n{conversation_text}")
+        logger.debug(f"Conversation history:\n{conversation_text}")  # Added conversation_text argument
 
         # Recupera il profilo utente dalla memoria a lungo termine
         thread_id = state.get("thread_id", "default-thread")
@@ -36,7 +36,7 @@ def greeting_node(state: dict) -> Command[Literal["__end__"]]:
 
         # Genera una risposta utilizzando lo storico completo
         assistant_response = generate_response(conversation_text, last_user_message, modified_response)
-        logger.debug(f"Assistant response: {assistant_response}")
+        logger.debug(f"Assistant response: {assistant_response}")  # Added assistant_response argument
 
         return Command(
             goto=END,
@@ -48,5 +48,5 @@ def greeting_node(state: dict) -> Command[Literal["__end__"]]:
         )
 
     except Exception as e:
-        logger.error(f"Errore nel greeting_node: {e}")
+        logger.error(f"Errore nel greeting_node: {e}", exc_info=True)
         return Command(goto=END, update={"terminate": False})  # Ensure terminate remains False

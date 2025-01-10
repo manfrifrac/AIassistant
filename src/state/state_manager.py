@@ -5,12 +5,14 @@ from typing import Type, get_origin, get_args  # Importa Type, get_origin, get_a
 from src.state.state_schema import StateSchema  # Importa StateSchema
 from src.memory_store import MemoryStore  # Importa MemoryStore
 from typing_extensions import Annotated  # Ensure Annotated is imported
+from src.utils.log_config import setup_logging  # Ensure setup_logging is imported
 
 logger = logging.getLogger("StateManager")
 
 class StateManager:
     def __init__(self):
-        self.memory_store = MemoryStore()  # Inizializza MemoryStore
+        self.memory_store = MemoryStore()  # Initialize MemoryStore
+        logger.debug("StateManager initialized.")
         self.state: StateSchema = {
             "user_messages": [],
             "agent_messages": [],
@@ -37,6 +39,17 @@ class StateManager:
         self.state_schema = schema
         logger.debug("StateSchema aggiornato in StateManager.")
 
+    def _format_state_for_log(self, state_dict: dict) -> dict:
+        """Formatta lo stato per il logging in modo più leggibile"""
+        return {
+            key: (
+                value[-3:] if isinstance(value, list) and key in ['user_messages', 'agent_messages'] 
+                else value
+            )
+            for key, value in state_dict.items()
+            if key in ['user_messages', 'agent_messages', 'last_agent', 'next_agent']
+        }
+
     def update_state(self, updates: dict):
         """Aggiorna lo stato con i nuovi valori forniti, validandoli contro StateSchema."""
         if not isinstance(updates, dict):
@@ -60,20 +73,21 @@ class StateManager:
                 if base_type is list:
                     if reducer:
                         self.state[key] = reducer(self.state.get(key, []), value)
-                        logger.debug(f"Aggiornato '{key}' usando reducer. Nuovo valore: {self.state[key]}")
+                        logger.debug("Updated state key '%s' with value: %s", key, 
+                                     str(self.state[key])[:200] + '...' if len(str(self.state[key])) > 200 else self.state[key])
                     else:
                         self.state[key].extend(value)
-                        logger.debug(f"Aggiunti elementi a '{key}' senza reducer. Nuovo valore: {self.state[key]}")
+                        logger.debug("Updated state key '%s' with value: %s", key, self.state[key])
                 elif base_type is dict:
                     if reducer:
                         self.state[key] = reducer(self.state.get(key, {}), value)
-                        logger.debug(f"Aggiornato '{key}' usando reducer. Nuovo valore: {self.state[key]}")
+                        logger.debug("Updated state key '%s' with value: %s", key, self.state[key])
                     else:
                         self.state[key].update(value)
-                        logger.debug(f"Aggiornato '{key}' come dict senza reducer. Nuovo valore: {self.state[key]}")
+                        logger.debug("Updated state key '%s' with value: %s", key, self.state[key])
                 else:
                     self.state[key] = value
-                    logger.debug(f"Aggiornato '{key}' con valore diretto. Nuovo valore: {self.state[key]}")
+                    logger.debug("Updated state key '%s' with value: %s", key, self.state[key])
             else:
                 logger.warning(f"Chiave non riconosciuta nello stato: {key}")
 
@@ -81,7 +95,7 @@ class StateManager:
         self.validate_state()
 
         # Log before deduplication
-        logger.debug(f"Pre-deduplication processed_messages: {self.state.get('processed_messages', [])}")
+        logger.debug("Pre-deduplication processed_messages: %s", self.state.get('processed_messages', []))
 
         # Ensure terminate remains False
         self.state["terminate"] = False  
@@ -101,11 +115,20 @@ class StateManager:
             logger.debug("Memoria a lungo termine aggiornata.")
         
         # Log after deduplication
-        logger.debug(f"Post-deduplication processed_messages: {self.state['processed_messages']}")
-        logger.debug(f"Stato aggiornato: {self.state}")
+        logger.debug("Post-deduplication processed_messages: %s", self.state['processed_messages'])
+        logger.debug("Stato dopo update_state: %s", self.state)
         
         # **Log current agent_messages**
-        logger.debug(f"Current agent_messages: {self.state.get('agent_messages', [])}")
+        logger.debug("Current agent_messages: %s", self.state.get('agent_messages', []))
+
+        # Log in modo più leggibile
+        logger.debug("Pre-deduplication processed_messages count: %d", 
+                     len(self.state.get('processed_messages', [])))
+        logger.debug("Post-deduplication processed_messages count: %d", 
+                     len(self.state['processed_messages']))
+    
+        formatted_state = self._format_state_for_log(self.state)
+        logger.debug("State after update: %s", formatted_state)
 
     def validate_state(self):
         """Valida lo stato attuale contro lo StateSchema."""
@@ -119,14 +142,14 @@ class StateManager:
                     if origin is not None:
                         if origin is list:
                             if not isinstance(value, list):
-                                logger.warning(f"Tipo inatteso per '{key}': aspettato list, ottenuto {type(value)}")
+                                logger.warning("Tipo inatteso per '%s': aspettato list, ottenuto %s", key, type(value))
                         elif origin is dict:
                             if not isinstance(value, dict):
-                                logger.warning(f"Tipo inatteso per '{key}': aspettato dict, ottenuto {type(value)}")
+                                logger.warning("Tipo inatteso per '%s': aspettato dict, ottenuto %s", key, type(value))
                         # Add more origin checks if necessary
                     else:
                         if not isinstance(value, expected_type):
-                            logger.warning(f"Tipo inatteso per '{key}': aspettato {expected_type}, ottenuto {type(value)}")
+                            logger.warning("Tipo inatteso per '%s': aspettato %s, ottenuto %s", key, expected_type, type(value))
             logger.debug("Validazione dello stato completata con successo.")
         except Exception as e:
             logger.error(f"Errore durante la validazione dello stato: {e}")

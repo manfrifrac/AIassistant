@@ -67,7 +67,6 @@ builder.add_conditional_edges(
     source="supervisor",
     path=lambda state: "greeting" if state.get("last_agent") in {"researcher", "greeting"} else "researcher"
 )
-builder.add_edge("supervisor", "manage_memory")
 builder.add_edge("manage_memory", END)
 builder.add_edge("researcher", "manage_memory")
 builder.add_edge("greeting", "manage_memory")
