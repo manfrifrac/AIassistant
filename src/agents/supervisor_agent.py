@@ -4,7 +4,9 @@ from langchain_openai import ChatOpenAI
 import logging
 from typing import List, Dict, Any
 from typing_extensions import Literal
-from src.tools.llm_tools import vectorize_messages, semantic_search
+from src.tools.llm_tools import vectorize_messages, semantic_search, save_to_long_term_memory, retrieve_from_long_term_memory, extract_relevant_data  # Ensure extract_relevant_data is defined
+import json  # Ensure json is imported if needed
+from src.memory_store import MemoryStore  # Updated import
 
 logger = logging.getLogger("SupervisorAgent")
 
@@ -33,6 +35,9 @@ Respond ONLY with 'RESEARCHER' or 'GREETING' in uppercase.
 
 llm = ChatOpenAI(model="gpt-3.5-turbo")
 
+# Inizializza un'istanza di MemoryStore se necessario
+memory_store = MemoryStore()
+
 def determine_next_agent(user_message: str, state: dict) -> str:
     try:
         logger.debug(f"[DETERMINE_AGENT] Input state: {state}")
@@ -50,7 +55,7 @@ def determine_next_agent(user_message: str, state: dict) -> str:
         # Create model messages
         model_messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Previous context: {context}\n\nUser message: {user_message}"}
+            {"role": "user", "content": f"Previous context: {json.dumps(context)}\n\nUser message: {user_message}"}
         ]
         logger.debug(f"[DETERMINE_AGENT] Model input: {model_messages}")
 
@@ -64,7 +69,7 @@ def determine_next_agent(user_message: str, state: dict) -> str:
             return "GREETING"
 
         logger.debug(f"[DETERMINE_AGENT] Final decision: {next_agent}")
-        return next_agent  # Changed from `return {next_agent}`
+        return next_agent
 
     except Exception as e:
         logger.error(f"[DETERMINE_AGENT] Error: {str(e)}", exc_info=True)
@@ -84,26 +89,44 @@ def get_last_user_message(messages: List[Dict[str, Any]]) -> str:
 
 def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "__end__"]]:
     try:
-        # Verifica se la conversazione deve terminare
-        if state.get("terminate", False):
-            logger.debug("Richiesta di terminazione rilevata.")
-            return Command(goto=END, update={})
-        
-        # Verifica la presenza di messaggi dell'utente
+        # Initialize 'processed_messages' if not present
+        if "processed_messages" not in state:
+            state["processed_messages"] = []
+            logger.debug("Initialized 'processed_messages' in state.")
+
+        # Check for user messages
         user_messages = state.get("user_messages", [])
         if not user_messages:
-            logger.warning("Nessun messaggio dell'utente trovato nello stato.")
+            logger.warning("No user messages found in state.")
             return Command(goto=END, update={"terminate": True})
 
-        # Recupera l'ultimo messaggio dell'utente
+        # Retrieve the last user message
         last_user_message = get_last_user_message(user_messages)
         if not last_user_message:
-            logger.warning("L'ultimo messaggio dell'utente è vuoto o non valido.")
+            logger.warning("The last user message is empty or invalid.")
             return Command(goto=END, update={"terminate": True})
 
-        # Determina il prossimo agente con il nuovo contesto
+        logger.debug(f"Last user message: {last_user_message}")
+
+        # Check if the message has already been processed
+        if last_user_message in state["processed_messages"]:
+            logger.debug("The user message has already been processed. No action needed.")
+            return Command(goto=END, update={})
+
+        # Retrieve information from long-term memory
+        thread_id = state.get("thread_id", "default-thread")
+        
+        # Rimuovi eventuali riferimenti a builder.memory_store se presenti
+        # Usa direttamente l'istanza di memory_store
+        user_profile = memory_store.retrieve_from_long_term_memory("user_profiles", thread_id)
+        if user_profile:
+            context = {}  # Initialize context
+            context.update({"user_profile": user_profile})
+            logger.debug(f"User profile added to context: {user_profile}")
+
+        # Determine the next agent with the new context
         next_agent = determine_next_agent(last_user_message, state)
-        logger.debug(f"Tipo di agente determinato: {next_agent}")
+        logger.debug(f"Determined agent type: {next_agent}")
         
         state_updates = {
             "last_user_message": last_user_message,
@@ -111,44 +134,36 @@ def supervisor_node(state: dict) -> Command[Literal["researcher", "greeting", "_
         }
 
         if next_agent == "RESEARCHER":
-            # Imposta la query nello stato
             state_updates.update({
                 "last_agent": "researcher",
-                "query": last_user_message  # Changed from last_user_message['content']
+                "query": last_user_message
             })
-            logger.debug("Passaggio al ResearcherAgent.")
-            return Command(goto="researcher", update=state_updates)
-        
+            # Example: Save the query to long-term memory
+            memory_store.save_to_long_term_memory("user_queries", last_user_message, {"query": last_user_message})
         elif next_agent == "GREETING":
             state_updates.update({
                 "last_agent": "greeting"
             })
-            logger.debug("Passaggio al GreetingAgent.")
-            return Command(goto="greeting", update=state_updates)
-        
+            # Example: Update the user profile
+            memory_store.save_to_long_term_memory("user_profiles", thread_id, {"last_greeting": last_user_message})
         else:
-            logger.warning("Tipo di agente non riconosciuto. Terminazione.")
+            logger.warning("Unrecognized agent type. Terminating.")
             return Command(goto=END, update={"terminate": True})
-    
+
+        # Add the message to the processed list only once
+        processed = state.get("processed_messages", [])
+        if last_user_message not in processed:
+            processed.append(last_user_message)
+            state_updates["processed_messages"] = processed
+            logger.debug(f"Added to processed_messages: {last_user_message}")
+            logger.debug(f"Updated processed_messages: {state_updates['processed_messages']}")
+
+        return Command(goto=next_agent.lower(), update=state_updates)
+
     except Exception as e:
         logger.error(f"Error: {str(e)}", exc_info=True)
-        return Command(goto=END, update={"terminate": True})
-        logger.debug(f"[DETERMINE_AGENT] Input state: {state}")
+        return Command(goto=END, update={"terminate": False})  # Ensure terminate remains False
 
-def modify_response(research_result: str) -> str:
-    """Modifica la risposta utilizzando un prompt e un LLM."""
-    try:
-        prompt = (
-            "Hai raccolto le seguenti informazioni: "
-            f"{research_result}. "
-            "Estrapola le informazioni più importanti e fornisci una risposta concisa e chiara."
-        )
-        response = llm.invoke(input=[{"role": "system", "content": prompt}])
-        return response.content.strip()
-    except Exception as e:
-        logger.error(f"Errore durante la modifica della risposta: {e}")
-        return research_result  # Fallback alla risposta originale
-    
 def find_relevant_messages(state: dict, last_user_message: str) -> List[Dict[str, Any]]:
     """Trova i messaggi rilevanti basati sull'ultimo messaggio dell'utente."""
     try:

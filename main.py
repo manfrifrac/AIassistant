@@ -3,8 +3,11 @@ from src.voice_assistant import VoiceAssistant
 import sys
 from langgraph.types import Command
 from typing import Literal
-from src.tools.llm_tools import generate_response
+from src.tools.llm_tools import generate_response, save_to_long_term_memory  # Ensure correct import
 from langgraph.graph import END  # Importa END se necessario
+from src.memory_store import MemoryStore  # Importa MemoryStore
+from src.state.state_manager import StateManager
+from src.state.state_schema import StateSchema  # Importa StateSchema
 
 def main():
     logging.basicConfig(
@@ -24,29 +27,34 @@ def main():
     logging.getLogger("gtts.tts").setLevel(logging.WARNING)
 
     logging.getLogger("LangGraphSetup").setLevel(logging.DEBUG)
-    logging.getLogger("StateManager").setLevel(logging.DEBUG)
+    logging.getLogger("StateManager").setLevel(logging.INFO)
     logging.getLogger("VoiceAssistant").setLevel(logging.DEBUG)
-    logging.getLogger("SupervisorAgent").setLevel(logging.DEBUG)
-    logging.getLogger("ResearcherAgent").setLevel(logging.DEBUG)
-    logging.getLogger("GreetingAgent").setLevel(logging.DEBUG)
+    logging.getLogger("SupervisorAgent").setLevel(logging.INFO)
+    logging.getLogger("ResearcherAgent").setLevel(logging.INFO)
+    logging.getLogger("GreetingAgent").setLevel(logging.INFO)
     logging.getLogger("LLMTools").setLevel(logging.WARNING)
     logging.getLogger("PythonREPLTool").setLevel(logging.DEBUG)
     logging.getLogger("SpotifyTools").setLevel(logging.DEBUG)
-    logging.getLogger("TTS").setLevel(logging.DEBUG)
+    logging.getLogger("TTS").setLevel(logging.INFO)
     logging.getLogger("AudioHandler").setLevel(logging.WARNING)
     logging.getLogger("ErrorHandler").setLevel(logging.DEBUG)
-    logging.getLogger("StateManager").setLevel(logging.DEBUG)
+    state_manager = StateManager()
+    state_manager.set_state_schema(StateSchema)  # Passa il tipo, non un'istanza
+    assistant = VoiceAssistant(state_manager)  # Pass StateManager instance
 
-    assistant = VoiceAssistant()
     try:
-        while True:
-            thread_id = input("Inserisci un thread ID (o premi Enter per continuare): ")
-            if thread_id:
-                assistant.set_thread_id(thread_id)
+        iteration = 0
+        max_iterations = 10  # Define a maximum number of iterations
+        while iteration < max_iterations and assistant.listening:
             assistant.run()
+            iteration += 1
+        if iteration >= max_iterations:
+            logging.warning("Numero massimo di iterazioni raggiunto. Terminazione forzata.")
     except KeyboardInterrupt:
         logging.info("Voice Assistant terminato dall'utente.")
     finally:
+        # Salva la memoria a lungo termine prima di chiudere
+        assistant.update_state("")
         logging.info("Chiusura del Voice Assistant.")
 
 if __name__ == "__main__":

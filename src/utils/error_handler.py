@@ -10,3 +10,8 @@ class ErrorHandler:
             logger.error(f"{context} - {error}", exc_info=True)
         else:
             print(f"Errore non loggato: {context} - {error}")
+
+    @staticmethod
+    def handle(e: Exception):
+        logging.error(f"Unhandled exception: {e}", exc_info=True)
+        # Additional error handling logic can be added here

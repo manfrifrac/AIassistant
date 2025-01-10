@@ -1,12 +1,12 @@
 from langgraph.types import Command
 from typing import Literal
-from src.tools.llm_tools import generate_response
+from src.tools.llm_tools import generate_response, retrieve_from_long_term_memory, save_to_long_term_memory  # Import necessary memory functions
 import logging
 from langgraph.graph import END  # Importa END se necessario
 
 logger = logging.getLogger("GreetingAgent")
 
-def greeting_node(state: dict) -> Command[Literal["supervisor", "__end__"]]:
+def greeting_node(state: dict) -> Command[Literal["__end__"]]:
     logger.debug(f"Invoking greeting_node with state: {state}")
 
     # Recupera l'ultimo messaggio dell'utente, i messaggi rilevanti e la risposta modificata
@@ -27,20 +27,26 @@ def greeting_node(state: dict) -> Command[Literal["supervisor", "__end__"]]:
         )
         logger.debug(f"Conversation history:\n{conversation_text}")
 
+        # Recupera il profilo utente dalla memoria a lungo termine
+        thread_id = state.get("thread_id", "default-thread")
+        user_profile = retrieve_from_long_term_memory("user_profiles", thread_id)
+        if user_profile:
+            conversation_text += f"\nUser preferences: {user_profile.get('last_greeting', 'N/A')}"
+            logger.debug(f"Preferenze utente aggiunte al contesto: {user_profile.get('last_greeting', 'N/A')}")
+
         # Genera una risposta utilizzando lo storico completo
         assistant_response = generate_response(conversation_text, last_user_message, modified_response)
         logger.debug(f"Assistant response: {assistant_response}")
 
-        # Aggiungi la risposta al contesto
-        updated_agent_messages = state.get("agent_messages", []) + [
-            {"role": "assistant", "content": assistant_response}
-        ]
-
         return Command(
-            goto=END,  # Termina dopo la risposta
-            update={"agent_messages": updated_agent_messages},
+            goto=END,
+            update={
+                "agent_messages": state.get("agent_messages", []) + [
+                    {"role": "assistant", "content": assistant_response}
+                ],
+            },
         )
 
     except Exception as e:
         logger.error(f"Errore nel greeting_node: {e}")
-        return Command(goto=END, update={"terminate": True})
+        return Command(goto=END, update={"terminate": False})  # Ensure terminate remains False

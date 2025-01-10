@@ -51,5 +51,4 @@ def make_handoff_tool(agent_name: str):
                 "agent_messages": state.get("agent_messages", []) + [tool_message],
             },
         )
-
     return handoff_to_agent
