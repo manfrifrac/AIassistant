@@ -288,11 +288,3 @@ def some_condition(key: str, value: Any) -> bool:
     if "important_message" in key:
         return bool(value.get("content"))
     return False
-def some_condition(key: str, value: Any) -> bool:
-    """Definisce la condizione per filtrare i dati rilevanti nella memoria."""
-    # Esempio: Filtra solo le query non vuote e i messaggi importanti
-    if "query" in key:
-        return bool(value.get("query"))
-    if "important_message" in key:
-        return bool(value.get("content"))
-    return False

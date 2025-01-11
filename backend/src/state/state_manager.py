@@ -127,7 +127,7 @@ class StateManager:
         logger.debug("Post-deduplication processed_messages count: %d", 
                      len(self.state['processed_messages']))
     
-        formatted_state = self._format_state_for_log(self.state)
+        formatted_state = self._format_state_for_log(dict(self.state))
         logger.debug("State after update: %s", formatted_state)
 
     def validate_state(self):
@@ -160,3 +160,7 @@ class StateManager:
         if agent_messages:
             return agent_messages[-1].get("content", "")
         return ""
+
+    def to_dict(self):
+        """Convert the state to a dictionary."""
+        return dict(self.state)

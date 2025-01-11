@@ -21,8 +21,8 @@ def make_handoff_tool(agent_name: str):
 
     @tool(tool_name)
     def handoff_to_agent(
-        state: Annotated[dict, InjectedState] = None,
-        tool_call_id: Annotated[str, InjectedToolCallId] = None,
+        state: Annotated[dict, InjectedState] = {},
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ):
         """Effettua l'handoff a un altro agente."""
         if not state:

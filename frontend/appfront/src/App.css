@@ -1,0 +1,275 @@
+body {
+  margin: 0;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.App {
+  text-align: center;
+  padding: 40px 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.content-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  width: 100%;
+  max-width: 800px;
+}
+
+.visualizer-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.controls-container {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 600px;
+  padding: 0 20px;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#input-container {
+  margin: 20px auto;
+  max-width: 500px;
+  display: flex;
+  gap: 10px;
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 20px;
+}
+
+#command-input {
+  flex: 1;
+  padding: 15px 20px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 15px 20px;
+  font-size: 16px;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #ffffff;
+}
+
+#command-input:focus {
+  outline: none;
+  border-color: #2196f3;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  background: #007bff;
+  color: white;
+}
+
+#mic-btn {
+  padding: 10px 15px;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  color: #ffffff;
+  font-size: 20px;
+}
+
+#mic-btn:hover {
+  background: #2c2c2c;
+}
+
+#mic-btn.recording {
+  background-color: #dc3545;
+  animation: pulse 1.5s infinite;
+  background-color: #f32121;
+  animation: pulse 1.5s infinite;
+}
+
+.hidden {
+  display: none;
+}
+
+#status {
+  margin: 10px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+#recording-status {
+  color: #dc3545;
+  margin-top: 10px;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.diamond-container {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20px;
+}
+
+.diamond {
+  width: 60px;
+  height: 60px;
+  background: #2196f3;
+  transform-origin: center;
+  transform: rotate(45deg);
+  transition: transform 0.05s ease-out;
+}
+
+.visualizer-container {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.audio-visualizer {
+  width: 300px;
+  height: 300px;
+  transition: transform 0.1s ease-out;
+}
+
+.audio-visualizer .curve {
+  stroke-width: 3;
+  transition: all 0.05s cubic-bezier(0.4, 0, 0.2, 1);
+  vector-effect: non-scaling-stroke;
+}
+
+.audio-visualizer .top-curve,
+.audio-visualizer .bottom-curve {
+  stroke: #2196f3;
+  filter: drop-shadow(0 0 8px rgba(33, 150, 243, 0.6));
+}
+
+.audio-visualizer.active .curve {
+  stroke: #4CAF50;
+  stroke-width: 4;
+}
+
+.audio-visualizer .top-curve {
+  stroke: #2196f3;
+  filter: drop-shadow(0 -2px 4px rgba(33, 150, 243, 0.5));
+}
+
+.audio-visualizer .bottom-curve {
+  stroke: #2196f3;
+  filter: drop-shadow(0 2px 4px rgba(33, 150, 243, 0.5));
+}
+
+.audio-visualizer.active .curve {
+  stroke: #4CAF50;
+  stroke-width: 4;
+  transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.audio-visualizer.active .top-curve {
+  filter: drop-shadow(0 -4px 8px rgba(76, 175, 80, 0.8));
+}
+
+.audio-visualizer.active .bottom-curve {
+  filter: drop-shadow(0 4px 8px rgba(76, 175, 80, 0.8));
+}
+
+.diamond-shape,
+.diamond {
+  display: none;
+}
+
+@keyframes glow {
+  0% {
+    filter: drop-shadow(0 0 5px rgba(76, 175, 80, 0.5));
+    stroke-width: 3;
+  }
+  50% {
+    filter: drop-shadow(0 0 15px rgba(76, 175, 80, 0.8));
+    stroke-width: 4;
+  }
+  100% {
+    filter: drop-shadow(0 0 5px rgba(76, 175, 80, 0.5));
+    stroke-width: 3;
+  }
+}
+
+.audio-visualizer.active {
+  animation: glow 2s infinite;
+}

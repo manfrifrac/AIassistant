@@ -61,7 +61,7 @@ def determine_next_agent(user_message: str, state: dict) -> str:
 
         # Get model response
         response = llm.invoke(input=model_messages)
-        next_agent = response.content.strip().upper()
+        next_agent = response.content
         logger.debug(f"[DETERMINE_AGENT] Raw model response: {response.content}")
 
         if next_agent not in {"RESEARCHER", "GREETING"}:

@@ -8,6 +8,11 @@ import logging
 from typing import List, Dict, Any, Optional
 from src.tools.embedding import model  # Import llm and model from embedding.py
 from src.memory_store import MemoryStore  # Updated import
+from dotenv import load_dotenv
+import os
+
+# Load environment variables at module level
+load_dotenv()
 
 logger = logging.getLogger("LLMTools")
 
@@ -24,7 +29,7 @@ def perform_research(query: str) -> str:
             ],
             temperature=0.7
         )
-        research_result = response.content.strip()
+        research_result = response.content if isinstance(response.content, str) else str(response.content)
         logger.debug(f"Risultati della ricerca: {research_result}")
         return research_result
     except Exception as e:
@@ -42,7 +47,7 @@ def generate_response(conversation_text: str, last_user_message: str, modified_r
             temperature=0.7
         )
         # Estrai solo il contenuto della risposta
-        generated_response = response.content.strip()
+        generated_response = response.content if isinstance(response.content, str) else str(response.content)
         logger.debug(f"Risposta generata: {generated_response}")
         return generated_response
     except Exception as e:

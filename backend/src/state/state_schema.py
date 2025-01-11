@@ -53,3 +53,4 @@ class StateSchema(TypedDict, total=False):
     relevant_messages: List[Dict[str, Any]]  # Aggiungi i messaggi rilevanti
     modified_response: str  # Aggiungi la risposta modificata
     # Optional: Add fallback-related fields if necessary
+
