@@ -143,5 +143,5 @@ Thumbs.db
 *.db-wal
 logs/
 log/
-backend/node_modules
+backend/node_modules/*
 models/*
