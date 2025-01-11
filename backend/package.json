@@ -1,0 +1,14 @@
+{
+  "scripts": {
+    "start-backend": "python -m uvicorn backend.src.api:app --reload",
+    "start-frontend": "cd frontend_react && npm start",
+    "build": "cd frontend_react && npm run build",
+    "start": "npm-run-all --parallel start-backend start-frontend"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  },
+  "dependencies": {
+    "@ljharb/tsconfig": "^0.2.3"
+  }
+}
