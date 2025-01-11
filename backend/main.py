@@ -32,15 +32,10 @@ def main():
     try:
         logger.debug("Stato iniziale: %s", state_manager.state)
 
-        iteration = 0
-        max_iterations = 10
-        while iteration < max_iterations and assistant.listening:
+        # Removed redundant loop to prevent multiple initializations
+        if assistant.listening:
             assistant.run()
-            iteration += 1
-            
-        if iteration >= max_iterations:
-            logger.warning("Maximum iterations reached. Forced termination.")
-            
+                
     except KeyboardInterrupt:
         logger.info("Voice Assistant terminated by user.")
     except Exception as e:
