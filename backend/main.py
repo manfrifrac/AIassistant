@@ -2,9 +2,10 @@ from src.voice_assistant import VoiceAssistant
 from src.state.state_manager import StateManager
 from src.state.state_schema import StateSchema
 from src.utils.log_config import setup_logging
+from src.api import app  # Import the app directly instead of the module
 import logging
 import uvicorn
-from fastapi import FastAPI  # Added import for FastAPI
+from fastapi import FastAPI
 
 def main():
     # Clear any existing handlers before setup
@@ -23,11 +24,12 @@ def main():
     logger.debug("Debug logging test message")  # Questo messaggio apparirà solo se debug_mode è True
     logger.info("Starting Voice Assistant")
     
+    # Initialize variables before try block
+    state_manager = StateManager()
+    state_manager.set_state_schema(StateSchema)
+    assistant = VoiceAssistant(state_manager)
+    
     try:
-        state_manager = StateManager()
-        state_manager.set_state_schema(StateSchema)
-        assistant = VoiceAssistant(state_manager)  # Ensure VoiceAssistant is correctly initialized
-        
         logger.debug("Stato iniziale: %s", state_manager.state)
 
         iteration = 0
@@ -48,8 +50,8 @@ def main():
         logger.debug("Stato dopo update_state: %s", state_manager.state)
         logger.info("Voice Assistant shutdown complete.")
 
-    app = FastAPI()  # Define the app variable before running uvicorn
-    uvicorn.run("src.api:app", host="0.0.0.0", port=8000, reload=True)
+    # Run the FastAPI application
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
 
 if __name__ == "__main__":
     main()

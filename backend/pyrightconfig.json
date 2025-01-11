@@ -1,6 +1,0 @@
-{
-    "extraPaths": ["./src"],
-    "include": ["./src", "./start_frontend.py", "./main.py"],
-    "venvPath": "./",
-    "venv": "venv"
-}

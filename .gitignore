@@ -1,50 +1,147 @@
-# File di sistema
-*.pyc
+# Python
 __pycache__/
-*.log
-*.DS_Store
-.cache
-
-# File temporanei
-output.mp3
-output.wav
-temp_audio.wav
-
-# Ambiente virtuale
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 venv/
 .env
+backend/venvback
+backend/node_modules
 
-# Log e altri file generati
-logs/
-
-
-# Byte-compiled files
-*.py[cod]
+# Python extras
+*.pyc
+.pytest_cache/
 __pycache__/
 *.pyo
+*.pyd
+.Python
+.python-version
+.env.local
+.env.*.local
 
-# Logs and databases
-*.log
+# Node/React
+node_modules/
+/frontend/*/node_modules
+/frontend/*/.pnp
+/frontend/*/.pnp.js
+/frontend/*/coverage
+/frontend/*/build
+/frontend/*/.DS_Store
+/frontend/*/.env.local
+/frontend/*/.env.development.local
+/frontend/*/.env.test.local
+/frontend/*/.env.production.local
+/frontend/*/npm-debug.log*
+/frontend/*/yarn-debug.log*
+/frontend/*/yarn-error.log*
+
+# React/Node extras
+.env.development
+.env.test
+.env.production
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# IDE extras
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# Project specific
+temp_*.wav
+*.wav
+/database/
+/logs/
+.pytest_cache/
+*.db
 *.sqlite3
-
-# Environment variables
-.env
-
-# Virtual environments
-.venv/
-venv/
-ENV/
+*.log
 
 # Audio files
 *.mp3
 *.wav
+*.aac
+*.ogg
+temp_*.*
 
-# Pytest cache
-.pytest_cache/
+# Secrets and configs
+config.ini
+secrets.json
+credentials.json
+aws_credentials.json
+.env.*
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
+# Documentation
+/docs/_build/
+/site/
 
-models/
-.vscode/
-launch.json
+# Temporary files
+*.tmp
+*.temp
+.coverage
+htmlcov/
+
+# Development
+.coverage
+coverage/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and databases extras
+*.log.*
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+logs/
+log/
+backend/node_modules
+models/*

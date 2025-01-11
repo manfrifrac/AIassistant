@@ -1,0 +1,23 @@
+[33mcommit 42073e685aac9aec57d45c6b4dc128b31d82901e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Manfredo <manfredo.fraccola@gmail.com>
+Date:   Sat Jan 11 14:07:41 2025 +0100
+
+    Add type hinting markers and version files for various packages; remove obsolete ESLint configurations
+
+[33mcommit 41c38fa88c6343fc76a6226eae3def06d4ca2351[m
+Author: Manfredo <manfredo.fraccola@gmail.com>
+Date:   Sat Jan 11 14:07:13 2025 +0100
+
+    Remove obsolete files and configurations from various node modules
+
+[33mcommit 335677e4c1c335c2b54482f2b3b508309876973a[m
+Author: Manfredo <manfredo.fraccola@gmail.com>
+Date:   Sat Jan 11 14:04:53 2025 +0100
+
+    Remove obsolete files and configurations from node modules
+
+[33mcommit 8a1a98aa6763cbaa3f08840dffb10c4368a3f987[m
+Author: Manfredo <manfredo.fraccola@gmail.com>
+Date:   Sat Jan 11 14:04:28 2025 +0100
+
+    Remove obsolete node modules and clean up related configuration files
