@@ -6,8 +6,8 @@ from sklearn.neighbors import NearestNeighbors
 import numpy as np
 import logging
 from typing import List, Dict, Any, Optional
-from src.tools.embedding import model  # Import llm and model from embedding.py
-from src.memory_store import MemoryStore  # Updated import
+from backend.src.tools.embedding import model  # Import llm and model from embedding.py
+from backend.src.memory_store import MemoryStore  # Updated import
 from dotenv import load_dotenv
 import os
 

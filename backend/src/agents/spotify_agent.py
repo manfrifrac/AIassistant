@@ -1,7 +1,7 @@
 from langgraph.graph import MessagesState
 from langgraph.types import Command
 from typing import Literal
-from src.tools.spotify_tools import search_and_analyze_tracks
+from backend.src.tools.spotify_tools import search_and_analyze_tracks
 import logging
 
 logger = logging.getLogger("SpotifyAgent")

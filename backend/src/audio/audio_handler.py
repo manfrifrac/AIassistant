@@ -1,8 +1,8 @@
 # src/audio/audio_handler.py
 
 import simpleaudio as sa
-from src.audio.audio_cache import AudioCache
-from src.tts import generate_speech
+from backend.src.audio.audio_cache import AudioCache
+from backend.src.tts import generate_speech
 import logging
 import os
 

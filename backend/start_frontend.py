@@ -3,14 +3,14 @@ import uvicorn
 import signal
 
 import uvicorn.logging
-from src.utils.log_config import setup_logging
-from src.state.state_manager import StateManager
-from src.state.state_schema import StateSchema
-from src.voice_assistant import VoiceAssistant
+from backend.src.utils.log_config import setup_logging
+from backend.src.state.state_manager import StateManager
+from backend.src.state.state_schema import StateSchema
+from backend.src.voice_assistant import VoiceAssistant
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from src.api import app  # Importa app direttamente da api.py
+from backend.src.api import app  # Importa app direttamente da api.py
 
 def handle_interrupt(signum, frame):
     """Gestore per interruzioni (Ctrl+C)"""

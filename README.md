@@ -29,6 +29,18 @@ A voice-based assistant built with LangGraph for conversation flow management.
    python main.py
    ```
 
+## Running the Application
+
+You can run the AI Assistant in two modes using the main entry point:
+
+```bash
+# Run in backend mode (default)
+python main.py
+
+# Run in frontend mode
+python main.py --mode frontend
+```
+
 ## Usage
 
 - Provide a thread ID (optional).

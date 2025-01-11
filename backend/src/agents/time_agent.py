@@ -1,7 +1,7 @@
 from langgraph.graph import MessagesState
 from langgraph.types import Command
 from typing import Literal
-from src.tools.time_tools import get_structured_time
+from backend.src.tools.time_tools import get_structured_time
 import logging
 
 logger = logging.getLogger("TimeAgent")

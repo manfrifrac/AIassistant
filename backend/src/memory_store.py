@@ -1,12 +1,12 @@
 from typing import List, Dict, Any, Union, Optional
 import logging
-from src.tools.embedding import vectorize_messages, semantic_search
+from backend.src.tools.embedding import vectorize_messages, semantic_search
+from backend.src.state.state_schema import manage_short_term_memory, manage_long_term_memory
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import json
 from sklearn.neighbors import NearestNeighbors
 from sentence_transformers import SentenceTransformer
-from src.state.state_schema import manage_short_term_memory, manage_long_term_memory  # Import memory management functions
 import chromadb
 from chromadb.config import Settings
 import warnings

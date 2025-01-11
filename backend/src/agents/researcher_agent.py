@@ -2,7 +2,7 @@
 from langgraph.graph import END
 from langgraph.types import Command
 from langchain_openai import ChatOpenAI
-from src.tools.llm_tools import perform_research, modify_response, save_to_long_term_memory
+from backend.src.tools.llm_tools import perform_research, modify_response, save_to_long_term_memory
 import logging
 from typing import Literal
 

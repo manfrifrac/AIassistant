@@ -2,7 +2,7 @@ from langgraph.graph import MessagesState
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, AIMessage  # Assicurati che AIMessage sia importato correttamente
 from typing import Literal
-from src.tools.custom_tools import python_repl_tool
+from backend.src.tools.custom_tools import python_repl_tool
 from langgraph.prebuilt import create_react_agent
 import logging
 from langchain_openai import ChatOpenAI

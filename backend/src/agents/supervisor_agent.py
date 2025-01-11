@@ -4,9 +4,9 @@ from langchain_openai import ChatOpenAI
 import logging
 from typing import List, Dict, Any
 from typing_extensions import Literal
-from src.tools.llm_tools import vectorize_messages, semantic_search, save_to_long_term_memory, retrieve_from_long_term_memory, extract_relevant_data  # Ensure extract_relevant_data is defined
+from backend.src.tools.llm_tools import vectorize_messages, semantic_search, save_to_long_term_memory, retrieve_from_long_term_memory, extract_relevant_data  # Ensure extract_relevant_data is defined
 import json  # Ensure json is imported if needed
-from src.memory_store import MemoryStore  # Updated import
+from backend.src.memory_store import MemoryStore  # Updated import
 
 logger = logging.getLogger("SupervisorAgent")
 

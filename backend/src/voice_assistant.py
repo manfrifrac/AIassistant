@@ -2,13 +2,13 @@
 
 import logging
 import speech_recognition as sr
-from src.state.state_manager import StateManager
-from src.langgraph_setup import graph, END
-from src.audio.audio_handler import AudioHandler
-from src.utils.error_handler import ErrorHandler
-from src.memory_store import MemoryStore  # Importa MemoryStore
-from typing import Optional  # Import Optional
-from src.tools.llm_tools import retrieve_from_long_term_memory, save_to_long_term_memory, should_update_profile  # Import necessary memory functions
+from backend.src.state.state_manager import StateManager
+from backend.src.langgraph_setup import graph, END
+from backend.src.audio.audio_handler import AudioHandler
+from backend.src.utils.error_handler import ErrorHandler
+from backend.src.memory_store import MemoryStore
+from typing import Optional
+from backend.src.tools.llm_tools import retrieve_from_long_term_memory, save_to_long_term_memory, should_update_profile
 import asyncio
 from langchain.schema.runnable import RunnableConfig
 

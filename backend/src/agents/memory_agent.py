@@ -1,7 +1,7 @@
 from langgraph.types import Command
 from langgraph.graph import END
 from typing import Literal, Any, Dict, List
-from src.memory_store import MemoryStore  # Importa MemoryStore
+from backend.src.memory_store import MemoryStore  # Importa MemoryStore
 import logging  # Import logging module
 
 logger = logging.getLogger("MemoryAgent")  # Initialize logger
@@ -31,6 +31,7 @@ def manage_memory_node(state: dict) -> Command[Literal["__end__"]]:
         
         # Extract important info for long-term storage
         important_info = memory_store.extract_relevant_info(latest_message)
+        updated_long_term = long_term  # Initialize updated_long_term
         if important_info:
             updated_long_term = memory_store.manage_long_term(long_term, important_info)
             memory_store.save_to_long_term_memory("conversation_history", state.get("thread_id", "default"), updated_long_term)

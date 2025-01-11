@@ -3,10 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from src.voice_assistant import VoiceAssistant
-from src.state.state_manager import StateManager
-from src.state.state_schema import StateSchema
-from src.utils.log_config import setup_logging
+from backend.src.voice_assistant import VoiceAssistant
+from backend.src.state.state_manager import StateManager
+from backend.src.state.state_schema import StateSchema
+from backend.src.utils.log_config import setup_logging
 import asyncio
 import logging
 from pathlib import Path

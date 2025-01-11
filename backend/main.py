@@ -1,8 +1,8 @@
-from src.voice_assistant import VoiceAssistant
-from src.state.state_manager import StateManager
-from src.state.state_schema import StateSchema
-from src.utils.log_config import setup_logging
-from src.api import app  # Import the app directly instead of the module
+from backend.src.voice_assistant import VoiceAssistant
+from backend.src.state.state_manager import StateManager
+from backend.src.state.state_schema import StateSchema
+from backend.src.utils.log_config import setup_logging
+from backend.src.api import app  # Import the app directly instead of the module
 import logging
 import uvicorn
 from fastapi import FastAPI

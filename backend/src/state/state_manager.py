@@ -1,11 +1,11 @@
 # src/state/state_manager.py
 
 import logging
-from typing import Type, get_origin, get_args  # Importa Type, get_origin, get_args
-from src.state.state_schema import StateSchema  # Importa StateSchema
-from src.memory_store import MemoryStore  # Importa MemoryStore
-from typing_extensions import Annotated  # Ensure Annotated is imported
-from src.utils.log_config import setup_logging  # Ensure setup_logging is imported
+from typing import Type, get_origin, get_args
+from backend.src.state.state_schema import StateSchema
+from backend.src.memory_store import MemoryStore
+from typing_extensions import Annotated
+from backend.src.utils.log_config import setup_logging
 
 logger = logging.getLogger("StateManager")
 

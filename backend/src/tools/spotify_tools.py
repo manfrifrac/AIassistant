@@ -3,7 +3,7 @@
 import logging
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
-from src.config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
+from backend.src.config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
 
 logger = logging.getLogger("SpotifyTools")
 

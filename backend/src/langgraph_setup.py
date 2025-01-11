@@ -1,21 +1,21 @@
 from langgraph.store.memory import InMemoryStore  # Removed DBStore and LongTermStore
 # from langgraph.store.db_store import DBStore, LongTermStore  # Removed as DBStore does not exist
 from langgraph.graph import StateGraph, START, END
-from src.agents.supervisor_agent import supervisor_node
-from src.agents.researcher_agent import researcher_node
-from src.agents.greeting_agent import greeting_node
-from src.state.state_schema import StateSchema  # Assicurati che importi il StateSchema corretto
+from backend.src.agents.supervisor_agent import supervisor_node
+from backend.src.agents.researcher_agent import researcher_node
+from backend.src.agents.greeting_agent import greeting_node
+from backend.src.state.state_schema import StateSchema  # Assicurati che importi il StateSchema corretto
 import logging
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 from typing import Literal
-from src.agents.memory_agent import manage_memory_node  # Aggiungi questa importazione
-from src.tools.embedding import model  # Import the model from embedding.py
+from backend.src.agents.memory_agent import manage_memory_node  # Aggiungi questa importazione
+from backend.src.tools.embedding import model  # Import the model from embedding.py
 import psycopg2  # Import psycopg2 for PostgreSQL interaction
 from psycopg2.extras import RealDictCursor  # Optional: For dictionary-like cursor
 import json  # Import json for data serialization
-from src.memory_store import MemoryStore  # Importa MemoryStore direttamente
-from src.state.state_manager import StateManager  # Importa StateManager
+from backend.src.memory_store import MemoryStore  # Importa MemoryStore direttamente
+from backend.src.state.state_manager import StateManager  # Importa StateManager
 
 logger = logging.getLogger("LangGraphSetup")
 

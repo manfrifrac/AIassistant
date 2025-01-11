@@ -1,6 +1,6 @@
 from langgraph.types import Command
 from typing import Literal
-from src.tools.llm_tools import generate_response, retrieve_from_long_term_memory, save_to_long_term_memory  # Import necessary memory functions
+from backend.src.tools.llm_tools import generate_response, retrieve_from_long_term_memory, save_to_long_term_memory  # Import necessary memory functions
 import logging
 from langgraph.graph import END  # Importa END se necessario
 
