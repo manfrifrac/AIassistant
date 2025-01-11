@@ -24,25 +24,23 @@ def main():
     logger.debug("Debug logging test message")  # Questo messaggio apparirà solo se debug_mode è True
     logger.info("Starting Voice Assistant")
     
-    # Initialize variables before try block
-    state_manager = StateManager()
-    state_manager.set_state_schema(StateSchema)
-    assistant = VoiceAssistant(state_manager)
+    # Initialize variables before try block using CoreComponents
+    from backend.src.core_components import CoreComponents  # Local import to prevent circular dependency
+    core = CoreComponents.get_instance()
     
     try:
-        logger.debug("Stato iniziale: %s", state_manager.state)
+        logger.debug("Stato iniziale: %s", core.state_manager.state)
 
-        # Removed redundant loop to prevent multiple initializations
-        if assistant.listening:
-            assistant.run()
+        if core.assistant.listening:
+            core.assistant.run()
                 
     except KeyboardInterrupt:
         logger.info("Voice Assistant terminated by user.")
     except Exception as e:
         logger.error("Unexpected error: %s", e, exc_info=True)
     finally:
-        assistant.update_state("")
-        logger.debug("Stato dopo update_state: %s", state_manager.state)
+        core.assistant.update_state("")
+        logger.debug("Stato dopo update_state: %s", core.state_manager.state)
         logger.info("Voice Assistant shutdown complete.")
 
     # Run the FastAPI application

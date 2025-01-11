@@ -45,6 +45,7 @@ class PersistentStore:
             """, (namespace, key, json.dumps(data)))
             self.connection.commit()
             logger.debug(f"Saved to long-term memory: {namespace}/{key}")
+            # Store data in the long_term_memory table for persistence
 
     def get(self, namespace: str, key: str) -> dict:
         """Retrieve a record from long-term memory."""
@@ -59,6 +60,7 @@ class PersistentStore:
                 return result['data']
             logger.debug(f"No data found in long-term memory for: {namespace}/{key}")
             return {}
+            # Fetch data from the long_term_memory table based on namespace and key
 
     def search(self, namespace: str, query: str) -> list:
         """Perform a simple search in long-term memory."""
@@ -71,6 +73,7 @@ class PersistentStore:
             results = cursor.fetchall()
             #logger.debug(f"Search results in long-term memory for '{query}': {results}")
             return results
+            # Execute a text-based search within the long_term_memory table
 
 class LongTermStore:
     def __init__(self, store: PersistentStore, index: dict):
@@ -137,6 +140,7 @@ class MemoryStore:
         self.short_term_memory.append(message)
         logger.debug(f"Aggiunto messaggio alla memoria a breve termine: {message}")
         self.trim_short_term_memory()
+        # Append message to short_term_memory and trim if necessary
 
     def trim_short_term_memory(self, max_length: int = 100):
         """Mantiene solo gli ultimi `max_length` messaggi nella memoria a breve termine."""
@@ -155,6 +159,7 @@ class MemoryStore:
         relevant = semantic_search(vectors, query, self.short_term_memory)
         logger.debug(f"Messaggi rilevanti trovati: {relevant}")
         return relevant
+        # Vectorize messages and perform semantic search to find relevant entries
 
     def save_to_long_term_memory(self, namespace: str, key: str, data: Dict[str, Any]) -> None:
         """Salva i dati nella memoria a lungo termine usando PostgreSQL."""
@@ -167,6 +172,7 @@ class MemoryStore:
         except Exception as e:
             logger.error(f"Errore nel salvataggio dei dati in memoria: {e}")
             raise
+        # Persist data in the long-term memory storage
 
     def retrieve_from_long_term_memory(self, namespace: str, key: str) -> Dict[str, Any]:
         """Recupera i dati dalla memoria a lungo termine."""
@@ -181,6 +187,7 @@ class MemoryStore:
         except Exception as e:
             logger.error(f"Errore nel recupero della memoria a lungo termine: {e}")
             return {}
+        # Access data from persistent storage based on namespace and key
 
     def search_long_term_memory(self, namespace: str, query: str) -> List[Dict[str, Any]]:
         """Esegue una ricerca nella memoria a lungo termine."""
@@ -194,6 +201,7 @@ class MemoryStore:
         except Exception as e:
             logger.error(f"Errore durante la ricerca nella memoria a lungo termine: {e}")
             return []
+        # Perform search operation using LongTermStore
 
     def get_last_thread_id(self) -> int:
         """Recupera l'ultimo thread_id da PostgreSQL."""
@@ -288,3 +296,6 @@ def some_condition(key: str, value: Any) -> bool:
     if "important_message" in key:
         return bool(value.get("content"))
     return False
+
+# Remove any direct instantiation of MemoryStore if present outside CoreComponents
+# All MemoryStore instances should be accessed via StateManager from CoreComponents

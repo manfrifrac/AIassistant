@@ -7,16 +7,12 @@ Usage:
 """
 
 import argparse
-from backend.src.voice_assistant import VoiceAssistant
+from backend.src.core_components import CoreComponents  # Import CoreComponents
 from backend.start_frontend import start_frontend
-from backend.src.state.state_manager import StateManager
-from backend.src.state.state_schema import StateSchema
+import logging
 
-def start_backend():
-    state_manager = StateManager()
-    state_manager.set_state_schema(StateSchema)
-    assistant = VoiceAssistant(state_manager)
-    assistant.run()
+def start_backend(core: CoreComponents):
+    core.assistant.run()
 
 def main():
     parser = argparse.ArgumentParser(description='AI Assistant')
@@ -27,10 +23,12 @@ def main():
 
     args = parser.parse_args()
 
+    core = CoreComponents.get_instance()
+
     if args.mode == 'frontend':
-        start_frontend()
+        start_frontend(core)
     else:
-        start_backend()
+        start_backend(core)
 
 if __name__ == "__main__":
     main()

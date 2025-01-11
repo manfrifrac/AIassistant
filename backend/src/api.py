@@ -14,29 +14,12 @@ import logging
 from pathlib import Path
 import os
 import base64
+from backend.src.core_components import CoreComponents  # Import CoreComponents
 
 # Base setup - fai questo solo se non è già stato fatto
 if not logging.getLogger().handlers:
     setup_logging(global_debug_mode=True)
 logger = logging.getLogger(__name__)
-
-# Singleton pattern per i componenti core
-class CoreComponents:
-    _instance = None
-    
-    @classmethod
-    def get_instance(cls):
-        if cls._instance is None:
-            cls._instance = cls()
-            cls._instance.init_components()
-        return cls._instance
-    
-    def init_components(self):
-        self.state_manager = StateManager()
-        self.state_manager.set_state_schema(StateSchema)
-        self.assistant = VoiceAssistant(self.state_manager)
-        self.assistant.is_web_mode = True
-        logger.info("Core components initialized")
 
 # Create FastAPI app first
 app = FastAPI()
@@ -54,7 +37,8 @@ app.add_middleware(
 core = CoreComponents.get_instance()
 state_manager = core.state_manager
 assistant = core.assistant
-
+assistant.is_web_mode = True  # Imposta il web mode
+    
 # Models - Aggiorna per corrispondere al frontend
 class Command(BaseModel):
     command: str

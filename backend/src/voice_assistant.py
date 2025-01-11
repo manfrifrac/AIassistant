@@ -3,10 +3,9 @@
 import logging
 import speech_recognition as sr
 from backend.src.state.state_manager import StateManager
-from backend.src.langgraph_setup import graph, END
+from backend.src.langgraph_setup import get_graph, END  # Ensure langgraph_setup does not import CoreComponents
 from backend.src.audio.audio_handler import AudioHandler
 from backend.src.utils.error_handler import ErrorHandler
-from backend.src.memory_store import MemoryStore
 from typing import Optional
 from backend.src.tools.llm_tools import retrieve_from_long_term_memory, save_to_long_term_memory, should_update_profile
 import asyncio
@@ -19,7 +18,6 @@ class VoiceAssistant:
         self.listening = True
         self.state_manager = state_manager
         self.audio_handler = AudioHandler()
-        self.memory_store = MemoryStore()
         self.thread_id = self.generate_thread_id()
         self.is_web_mode = False  # Aggiungiamo un flag per il web mode
         logger.debug("VoiceAssistant initialization completed.")
@@ -27,13 +25,13 @@ class VoiceAssistant:
     def generate_thread_id(self) -> str:
         """Genera un thread_id sequenziale basato sui thread esistenti."""
         try:
-            last_id = self.memory_store.get_last_thread_id()
+            last_id = self.state_manager.memory_store.get_last_thread_id()  # Updated
             new_id = last_id + 1
             thread_id = f"thread-{new_id}"
             logger.info(f"Generato nuovo thread_id: {thread_id}")
             
             # Salva il nuovo thread
-            if self.memory_store.save_thread(thread_id):
+            if self.state_manager.memory_store.save_thread(thread_id):  # Updated
                 logger.debug(f"Thread ID {thread_id} salvato con successo")
             else:
                 logger.warning(f"Impossibile salvare il thread ID {thread_id}")
@@ -48,6 +46,11 @@ class VoiceAssistant:
     async def process_command(self, command: str):
         """Elabora il comando trascritto."""
         try:
+            # Get the current graph instance
+            graph = get_graph()
+            if graph is None:
+                raise ValueError("Graph not initialized")
+                
             # Configura il RunnableConfig con il thread ID
             config = RunnableConfig(configurable={"thread_id": self.thread_id})
 
@@ -69,7 +72,7 @@ class VoiceAssistant:
             logger.debug("Aggiunto messaggio utente: %s", command)
 
             # Esegui il grafo
-            command_result = graph.invoke(state, config=config)
+            command_result = await graph.ainvoke(state, config=config)
             logger.debug("Risultato dell'esecuzione del grafo: %s", command_result)  # Added command_result argument
 
             # **Update the entire state instead of extracting 'update'**
@@ -82,13 +85,13 @@ class VoiceAssistant:
             # **Add logging for updated state**
             logger.debug("Stato dopo update_state: %s", self.state_manager.state)  # Added state_manager.state argument
 
-            # Usa MemoryStore direttamente
-            self.memory_store.save_to_long_term_memory("session_logs", self.thread_id, self.state_manager.to_dict())
+            # Usa MemoryStore direttamente tramite StateManager
+            self.state_manager.memory_store.save_to_long_term_memory("session_logs", self.thread_id, self.state_manager.to_dict())  # Updated
             assistant_message = self.state_manager.get_assistant_message()
             logger.debug(f"Messaggio dell'assistente: {assistant_message}")
 
             # Salva il thread_id nel database
-            self.memory_store.save_to_long_term_memory("threads", self.thread_id, {"thread_id": self.thread_id})
+            self.state_manager.memory_store.save_to_long_term_memory("threads", self.thread_id, {"thread_id": self.thread_id})  # Updated
             logger.debug(f"Thread ID salvato nel database: {self.thread_id}")
 
             # Riproduci la risposta solo se c'è un messaggio e NON siamo in web mode

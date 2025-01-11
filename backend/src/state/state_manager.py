@@ -10,8 +10,8 @@ from backend.src.utils.log_config import setup_logging
 logger = logging.getLogger("StateManager")
 
 class StateManager:
-    def __init__(self):
-        self.memory_store = MemoryStore()  # Initialize MemoryStore
+    def __init__(self, memory_store):  # Accept memory_store from CoreComponents
+        self.memory_store = memory_store  # Use the provided MemoryStore
         logger.debug("StateManager initialized.")
         self.state: StateSchema = {
             "user_messages": [],

@@ -17,6 +17,7 @@ from backend.src.voice_assistant import VoiceAssistant
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from backend.src.api import app  # Import the app instance directly
+from backend.src.core_components import CoreComponents  # Import CoreComponents
 
 def handle_interrupt(signum, frame):
     """Gestore per interruzioni (Ctrl+C)"""
@@ -24,7 +25,7 @@ def handle_interrupt(signum, frame):
     logger.info("Interruzione rilevata, chiusura in corso...")
     exit(0)
 
-def start_frontend():
+def start_frontend(core: CoreComponents):
     # Registra handler per SIGINT
     signal.signal(signal.SIGINT, handle_interrupt)
     
@@ -35,14 +36,8 @@ def start_frontend():
     
     logger.info("Starting Frontend Server")
 
-    # Initialize state manager and voice assistant for logging purposes
-    state_manager = StateManager()
-    state_manager.set_state_schema(StateSchema)
-    assistant = VoiceAssistant(state_manager)
-    assistant.is_web_mode = True  # Imposta il web mode
     
-    logger.debug("Stato iniziale: %s", state_manager.state)
-
+    logger.debug("Stato iniziale: %s", core.state_manager.state)
 
     # Correggi il percorso per puntare alla directory corretta
     frontend_build_path = Path(__file__).parent.parent / "frontend/appfront/build"
@@ -65,4 +60,5 @@ def start_frontend():
         logger.info("Server fermato")
 
 if __name__ == "__main__":
-    start_frontend()
+    core = CoreComponents.get_instance()  # Updated to use get_instance()
+    start_frontend(core)
