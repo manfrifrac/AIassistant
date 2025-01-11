@@ -206,48 +206,34 @@ button {
 .audio-visualizer {
   width: 300px;
   height: 300px;
-  transition: transform 0.1s ease-out;
+  transition: transform 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .audio-visualizer .curve {
-  stroke-width: 3;
-  transition: all 0.05s cubic-bezier(0.4, 0, 0.2, 1);
+  stroke-width: 4;
+  transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
   vector-effect: non-scaling-stroke;
+  will-change: d, stroke-width, filter;
 }
 
 .audio-visualizer .top-curve,
 .audio-visualizer .bottom-curve {
   stroke: #2196f3;
-  filter: drop-shadow(0 0 8px rgba(33, 150, 243, 0.6));
+  filter: drop-shadow(0 0 12px rgba(33, 150, 243, 0.8)) blur(0.3px);
 }
 
 .audio-visualizer.active .curve {
   stroke: #4CAF50;
-  stroke-width: 4;
-}
-
-.audio-visualizer .top-curve {
-  stroke: #2196f3;
-  filter: drop-shadow(0 -2px 4px rgba(33, 150, 243, 0.5));
-}
-
-.audio-visualizer .bottom-curve {
-  stroke: #2196f3;
-  filter: drop-shadow(0 2px 4px rgba(33, 150, 243, 0.5));
-}
-
-.audio-visualizer.active .curve {
-  stroke: #4CAF50;
-  stroke-width: 4;
-  transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+  stroke-width: 5;
 }
 
 .audio-visualizer.active .top-curve {
-  filter: drop-shadow(0 -4px 8px rgba(76, 175, 80, 0.8));
+  filter: drop-shadow(0 -6px 16px rgba(76, 175, 80, 0.9)) blur(0.5px);
 }
 
 .audio-visualizer.active .bottom-curve {
-  filter: drop-shadow(0 4px 8px rgba(76, 175, 80, 0.8));
+  filter: drop-shadow(0 6px 16px rgba(76, 175, 80, 0.9)) blur(0.5px);
 }
 
 .diamond-shape,
@@ -257,19 +243,32 @@ button {
 
 @keyframes glow {
   0% {
-    filter: drop-shadow(0 0 5px rgba(76, 175, 80, 0.5));
-    stroke-width: 3;
+    filter: drop-shadow(0 0 10px rgba(76, 175, 80, 0.7));
   }
   50% {
-    filter: drop-shadow(0 0 15px rgba(76, 175, 80, 0.8));
-    stroke-width: 4;
+    filter: drop-shadow(0 0 25px rgba(76, 175, 80, 1));
   }
   100% {
-    filter: drop-shadow(0 0 5px rgba(76, 175, 80, 0.5));
-    stroke-width: 3;
+    filter: drop-shadow(0 0 10px rgba(76, 175, 80, 0.7));
   }
 }
 
 .audio-visualizer.active {
-  animation: glow 2s infinite;
+  animation: glow 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-path {
+  stroke: #2196f3;
+  stroke-width: 4;
+  transition: stroke-width 0.1s ease-out;
+  /* Effetto glow */
+  filter: drop-shadow(0 0 10px rgba(33, 150, 243, 0.8));
+}
+
+/* Quando è attivo, cambiamo colore e ampliamo lo stroke */
+.audio-visualizer.active .wave-path {
+  stroke: #4CAF50;
+  stroke-width: 5;
+  filter: drop-shadow(0 0 16px rgba(76, 175, 80, 0.8));
+  transition: stroke-width 0.1s ease-out;
 }

@@ -286,25 +286,23 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    audioAnalyzer.current = new AudioAnalyzer();
-    
-    const updateLevel = () => {
-      if (audioRef.current && !audioRef.current.paused) {
-        const level = audioAnalyzer.current.getLevel();
-        setAudioLevel(level);
-      }
-      animationFrameRef.current = requestAnimationFrame(updateLevel);
-    };
-    
-    updateLevel();
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
+// Rimuovi o commenta il secondo useEffect duplicato che inizializza AudioAnalyzer:
+// useEffect(() => {
+//   audioAnalyzer.current = new AudioAnalyzer();
+//   const updateLevel = () => {
+//     if (audioRef.current && !audioRef.current.paused) {
+//       const level = audioAnalyzer.current.getLevel();
+//       setAudioLevel(level);
+//     }
+//     animationFrameRef.current = requestAnimationFrame(updateLevel);
+//   };
+//   updateLevel();
+//   return () => {
+//     if (animationFrameRef.current) {
+//       cancelAnimationFrame(animationFrameRef.current);
+//     }
+//   };
+// }, []);
 
   return (
     <div className="App">

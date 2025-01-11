@@ -1,59 +1,46 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+
 export function BezierDiamond({ audioLevel, isActive }) {
   const size = 300;
-  const center = size / 2;
-  
-  // Parametri più reattivi
-  const minWidth = 40;
-  const maxWidth = 120;
-  const minHeight = 30;
-  const maxHeight = 80;
-  
-  // Calcolo più sensibile delle dimensioni
-  const normalizedLevel = Math.min(Math.max(audioLevel, 0), 1);  // Assicura che sia tra 0 e 1
-  const scaleFactor = normalizedLevel * normalizedLevel;  // Risposta quadratica per enfatizzare i picchi
-  
-  // Calcolo dimensioni con maggiore reattività
-  const currentWidth = maxWidth - (scaleFactor * (maxWidth - minWidth));
-  const currentHeight = minHeight + (scaleFactor * (maxHeight - minHeight));
-  
-  // Punti di controllo più dinamici
-  const leftX = center - currentWidth;
-  const rightX = center + currentWidth;
-  const topY = center - currentHeight * (1 + scaleFactor);    // Maggiore estensione verticale
-  const bottomY = center + currentHeight * (1 + scaleFactor); // Maggiore estensione verticale
-  
-  // Curve di Bézier più dinamiche
-  const topCurve = `
-    M ${leftX} ${center}
-    C ${leftX + currentWidth * 0.2} ${topY},
-      ${rightX - currentWidth * 0.2} ${topY},
-      ${rightX} ${center}
-  `.trim();
-  
-  const bottomCurve = `
-    M ${leftX} ${center}
-    C ${leftX + currentWidth * 0.2} ${bottomY},
-      ${rightX - currentWidth * 0.2} ${bottomY},
-      ${rightX} ${center}
-  `.trim();
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const maxWidth = 120; // Massima distanza orizzontale
+  const maxHeight = 60;
+
+  // Calcoliamo l’apertura orizzontale:
+  const horizontal = maxWidth * (1 - Math.min(Math.max(audioLevel, 0), 1));
+  const leftX = centerX - horizontal;
+  const rightX = centerX + horizontal;
+
+  // L’altezza varia inversamente con l’apertura orizzontale
+  const vertical = maxHeight * Math.min(Math.max(audioLevel, 0), 1);
+  const topY = centerY - vertical;
+  const bottomY = centerY + vertical;
+
+  // Aggiunta di punti di controllo extra per asintoti
+  const controlOffset = horizontal * 0.3;
+
+  const pathData = useMemo(() => `
+    M ${centerX - horizontal} ${centerY}
+    C ${centerX - horizontal} ${centerY - vertical},
+      ${centerX + horizontal} ${centerY - vertical},
+      ${centerX + horizontal} ${centerY}
+    C ${centerX + horizontal} ${centerY + vertical},
+      ${centerX - horizontal} ${centerY + vertical},
+      ${centerX - horizontal} ${centerY}
+    Z
+  `.trim(), [audioLevel]);
 
   return (
-    <svg 
-      width={size} 
-      height={size} 
+    <svg
+      width={size}
+      height={size}
       className={`audio-visualizer ${isActive ? 'active' : ''}`}
       viewBox={`0 0 ${size} ${size}`}
     >
-      <path 
-        d={topCurve} 
-        className="curve top-curve" 
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path 
-        d={bottomCurve} 
-        className="curve bottom-curve" 
+      <path
+        d={pathData}
+        className="wave-path"
         fill="none"
         strokeLinecap="round"
         strokeLinejoin="round"

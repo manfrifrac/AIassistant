@@ -3,16 +3,21 @@ export class AudioAnalyzer {
     try {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
       this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 1024;
-      this.analyser.smoothingTimeConstant = 0.7;
+      this.analyser.fftSize = 2048; // Modificato per ottenere un segnale grezzo nel dominio del tempo
+      this.analyser.smoothingTimeConstant = 0.3;
       this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
       this.prevLevel = 0;
       this.source = null;
       
-      // Buffer per smoothing
-      this.levelHistory = new Array(5).fill(0);
-      this.historyIndex = 0;
-      console.log('AudioAnalyzer initialized successfully');
+      // Buffer circolare per smoothing avanzato
+      this.bufferSize = 12;
+      this.levelBuffer = new Array(this.bufferSize).fill(0);
+      this.bufferIndex = 0;
+      
+      // Parametri di interpolazione
+      this.interpolationFactor = 0.15;
+      this.peakDecay = 0.92;
+      this.peakLevel = 0;
     } catch (error) {
       console.error('Error initializing AudioAnalyzer:', error);
     }
@@ -39,25 +44,45 @@ export class AudioAnalyzer {
 
   getLevel() {
     try {
-      this.analyser.getByteFrequencyData(this.dataArray);
-      
-      // Focus sulle frequenze medio-basse (dove è più presente la voce)
-      const relevantFreqs = this.dataArray.slice(1, 50);
-      const currentLevel = Math.max(...relevantFreqs) / 255;
-      
-      // Media mobile per smoothing
-      this.levelHistory[this.historyIndex] = currentLevel;
-      this.historyIndex = (this.historyIndex + 1) % this.levelHistory.length;
-      
-      const averageLevel = this.levelHistory.reduce((a, b) => a + b) / this.levelHistory.length;
-      
-      // Smoothing aggiuntivo
-      const smoothingFactor = 0.3;
-      const smoothedLevel = this.prevLevel + (averageLevel - this.prevLevel) * smoothingFactor;
-      this.prevLevel = smoothedLevel;
-      
-      // Enfatizza i picchi ma mantieni un movimento fluido
-      return Math.pow(smoothedLevel, 1.5);
+      const timeDomainData = new Uint8Array(this.analyser.frequencyBinCount);
+      this.analyser.getByteTimeDomainData(timeDomainData);
+
+      // Calcoliamo l'RMS del segnale: media quadratica
+      let sumOfSquares = 0;
+      for (let i = 0; i < timeDomainData.length; i++) {
+        const sample = (timeDomainData[i] - 128) / 128;
+        sumOfSquares += sample * sample;
+      }
+      const rms = Math.sqrt(sumOfSquares / timeDomainData.length);
+
+      let currentLevel = rms; // Valore grezzo
+      // Rilevamento picco e decadimento
+      this.peakLevel = Math.max(currentLevel, this.peakLevel * this.peakDecay);
+
+      // Buffer circolare per smoothing
+      this.levelBuffer[this.bufferIndex] = currentLevel;
+      this.bufferIndex = (this.bufferIndex + 1) % this.bufferSize;
+
+      // Media pesata con enfasi sui valori più recenti
+      const weights = Array.from({length: this.bufferSize}, (_, i) => Math.exp(-i * 0.2));
+      const weightSum = weights.reduce((a, b) => a + b);
+
+      let smoothedLevel = 0;
+      for (let i = 0; i < this.bufferSize; i++) {
+        const idx = (this.bufferIndex - i + this.bufferSize) % this.bufferSize;
+        smoothedLevel += this.levelBuffer[idx] * weights[i];
+      }
+      smoothedLevel /= weightSum;
+
+      // Interpolazione cubica
+      const t = this.interpolationFactor;
+      const interpolatedLevel = this.prevLevel +
+        (smoothedLevel - this.prevLevel) * (1 - Math.pow(1 - t, 3));
+
+      this.prevLevel = interpolatedLevel;
+
+      // Usiamo la peakLevel come base
+      return 2.5 * Math.pow(Math.max(interpolatedLevel, this.peakLevel * 0.8), 1.2);
     } catch (error) {
       console.error('Error getting audio level:', error);
       return 0;
