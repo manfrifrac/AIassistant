@@ -3,6 +3,15 @@ import { BezierDiamond } from './components/BezierDiamond';
 import { AudioAnalyzer } from './components/AudioAnalyzer';
 import './App.css';
 
+// URLs e endpoints
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const ENDPOINTS = {
+  CHAT_STATUS: `${API_URL}/api/chat`,
+  CHAT_MESSAGE: `${API_URL}/api/chat`,
+  AUDIO_UPLOAD: `${API_URL}/audio`,
+  WEBSOCKET: `ws://localhost:8000/ws`
+};
+
 function App() {
   const [status, setStatus] = useState('Idle');
   const [command, setCommand] = useState('');
@@ -19,7 +28,7 @@ function App() {
 
   useEffect(() => {
     // Initial connection check
-    fetch('/api/chat')  // Verifica che sia /api/chat
+    fetch(ENDPOINTS.CHAT_STATUS)  // Verifica che sia /api/chat
       .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
         return response.json();
@@ -39,10 +48,10 @@ function App() {
     
     setStatus('Sending...');
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(ENDPOINTS.CHAT_MESSAGE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: command.trim() })
+        body: JSON.stringify({ command: command.trim() })  // Verifica che questo corrisponda al backend
       });
       
       if (!response.ok) throw new Error('Network response was not ok');
@@ -51,7 +60,7 @@ function App() {
       console.log('Response received:', data);
       setStatus(data.message);
 
-      if (data.audio_response) {
+      if (data.audio_response) {  // Cambiato da data.audio a data.audio_response
         console.log('Audio response received, attempting to play...');
         const audioData = `data:audio/wav;base64,${data.audio_response}`;
         const audio = setupAssistantAudioAnalyser(audioData);
@@ -216,7 +225,7 @@ function App() {
     formData.append('audio', audioBlob, 'recording.wav');
 
     try {
-      const response = await fetch('/audio', {
+      const response = await fetch(ENDPOINTS.AUDIO_UPLOAD, {
         method: 'POST',
         body: formData
       });

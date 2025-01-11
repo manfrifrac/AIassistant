@@ -1,16 +1,22 @@
 import logging
 import uvicorn
 import signal
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = str(Path(__file__).parent.parent)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 import uvicorn.logging
 from backend.src.utils.log_config import setup_logging
 from backend.src.state.state_manager import StateManager
 from backend.src.state.state_schema import StateSchema
 from backend.src.voice_assistant import VoiceAssistant
-from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from backend.src.api import app  # Importa app direttamente da api.py
+from backend.src.api import app  # Import the app instance directly
 
 def handle_interrupt(signum, frame):
     """Gestore per interruzioni (Ctrl+C)"""
@@ -37,8 +43,6 @@ def start_frontend():
     
     logger.debug("Stato iniziale: %s", state_manager.state)
 
-    # Define the app variable
-    app = FastAPI()
 
     # Correggi il percorso per puntare alla directory corretta
     frontend_build_path = Path(__file__).parent.parent / "frontend/appfront/build"
@@ -46,11 +50,12 @@ def start_frontend():
 
     try:
         uvicorn.run(
-            "src.api:app",  # Cambiato per riferirsi al modulo corretto
+            app,  # Use the app instance directly
             host="0.0.0.0", 
             port=8000, 
-            reload=True,  # Riabilitato il reload
-            log_level="debug"
+            reload=False,  # Disable reload when using app instance
+            log_level="debug",
+            access_log=True
         )
     except KeyboardInterrupt:
         logger.info("Chiusura ordinata del server...")
