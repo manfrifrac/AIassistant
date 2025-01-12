@@ -5,7 +5,7 @@ __pycache__/
 *.so
 .Python
 env/
-build/
+#build/
 develop-eggs/
 dist/
 downloads/
@@ -42,7 +42,7 @@ node_modules/
 /frontend/*/.pnp
 /frontend/*/.pnp.js
 /frontend/*/coverage
-/frontend/*/build
+#/frontend/*/build
 /frontend/*/.DS_Store
 /frontend/*/.env.local
 /frontend/*/.env.development.local
