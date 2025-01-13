@@ -1,7 +1,8 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
+from numpy.typing import NDArray
 from sklearn.neighbors import NearestNeighbors
 
 logger = logging.getLogger("EmbeddingTools")
@@ -10,35 +11,38 @@ logger = logging.getLogger("EmbeddingTools")
 model = SentenceTransformer('all-MiniLM-L6-v2')
 logger.debug("Modello SentenceTransformer inizializzato.")
 
-def vectorize_messages(messages: List[Dict[str, Any]]) -> np.ndarray:
-    """Vettorializza i contenuti dei messaggi."""
-    try:
-        texts = [msg['content'] for msg in messages]
-        embeddings = model.encode(texts)
-        logger.debug(f"Embeddings generati: {embeddings.shape}")
-        return embeddings
-    except Exception as e:
-        logger.error(f"Errore nella vettorializzazione dei messaggi: {e}")
+def vectorize_messages(messages: List[str]) -> NDArray:
+    """Convert messages to vector embeddings"""
+    if not messages:
         return np.array([])
+    vectors = model.encode(messages)
+    return np.array(vectors)
 
-def semantic_search(vectors: np.ndarray, query: str, messages: List[Dict[str, Any]], top_k: int = 3, similarity_threshold: float = 0.8) -> List[Dict[str, Any]]:
-    """Esegue una ricerca semantica per trovare i messaggi rilevanti."""
-    try:
-        if vectors.size == 0:
-            logger.debug("Vettori vuoti forniti per la ricerca semantica.")
-            return []
-        
-        query_vector = model.encode([query])
-        nbrs = NearestNeighbors(n_neighbors=min(top_k, len(messages)), algorithm='ball_tree').fit(vectors)
-        distances, indices = nbrs.kneighbors(query_vector)
-        
-        relevant_messages = []
-        for idx, distance in zip(indices[0], distances[0]):
-            if distance < similarity_threshold:
-                relevant_messages.append(messages[idx])
-        
-        logger.debug(f"{len(relevant_messages)} messaggi rilevanti trovati con una soglia di similarità di {similarity_threshold}.")
-        return relevant_messages
-    except Exception as e:
-        logger.error(f"Errore durante la ricerca semantica: {e}")
+def semantic_search(
+    vectors: NDArray,
+    query: str,
+    messages: List[Dict[str, Any]],
+    k: int = 5
+) -> List[Dict[str, Any]]:
+    """Perform semantic search using vector embeddings"""
+    if len(vectors) == 0:
         return []
+        
+    # Get query embedding
+    query_vector = model.encode([query])[0]
+    
+    # Calculate cosine similarities
+    similarities = np.dot(vectors, query_vector) / (
+        np.linalg.norm(vectors, axis=1) * np.linalg.norm(query_vector)
+    )
+    
+    # Get top k similar messages
+    top_k_indices = np.argsort(similarities)[-k:][::-1]
+    
+    return [messages[i] for i in top_k_indices if similarities[i] > 0.5]
+
+def embedding_function(data):
+    from backend.src.memory_store import MemoryStore  # Moved import inside the function
+    memory_store = MemoryStore()
+    # ...use memory_store...
+    # ...existing code...

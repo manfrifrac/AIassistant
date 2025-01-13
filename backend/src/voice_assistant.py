@@ -3,13 +3,19 @@
 import logging
 import speech_recognition as sr
 from backend.src.state.state_manager import StateManager
-from backend.src.langgraph_setup import get_graph, END  # Ensure langgraph_setup does not import CoreComponents
+from backend.src.langgraph_setup import get_graph, END, execute_graph, initialize_graph
 from backend.src.audio.audio_handler import AudioHandler
 from backend.src.utils.error_handler import ErrorHandler
-from typing import Optional
+from typing import Optional, Dict, Any, List, cast, Protocol, Coroutine
 from backend.src.tools.llm_tools import retrieve_from_long_term_memory, save_to_long_term_memory, should_update_profile
 import asyncio
 from langchain.schema.runnable import RunnableConfig
+from backend.src.langgraph_setup import CompiledStateGraph as LangGraphCompiledStateGraph  # Import the Protocol
+
+# Define local Protocol for CompiledStateGraph
+class CompiledStateGraph(LangGraphCompiledStateGraph):
+    """Local type alias for CompiledStateGraph"""
+    pass
 
 logger = logging.getLogger("VoiceAssistant")
 
@@ -19,8 +25,22 @@ class VoiceAssistant:
         self.state_manager = state_manager
         self.audio_handler = AudioHandler()
         self.thread_id = self.generate_thread_id()
-        self.is_web_mode = False  # Aggiungiamo un flag per il web mode
+        self.is_web_mode = False
+        self.graph = cast(CompiledStateGraph, initialize_graph(state_manager.memory_store))
+        self._initialize_graph()
         logger.debug("VoiceAssistant initialization completed.")
+
+    def _initialize_graph(self) -> None:
+        """Initialize the graph with proper error handling"""
+        try:
+            # Pass memory_store from state_manager
+            self.graph = initialize_graph(memory_store=self.state_manager.memory_store)
+            if not self.graph:
+                raise ValueError("Graph initialization returned None")
+            logger.info("Graph initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize graph: {e}")
+            raise RuntimeError(f"Graph initialization failed: {e}")
 
     def generate_thread_id(self) -> str:
         """Genera un thread_id sequenziale basato sui thread esistenti."""
@@ -31,10 +51,10 @@ class VoiceAssistant:
             logger.info(f"Generato nuovo thread_id: {thread_id}")
             
             # Salva il nuovo thread
-            if self.state_manager.memory_store.save_thread(thread_id):  # Updated
+            if self.state_manager.memory_store.save_thread(thread_id):  
                 logger.debug(f"Thread ID {thread_id} salvato con successo")
             else:
-                logger.warning(f"Impossibile salvare il thread ID {thread_id}")
+                logger.error(f"Fallito nel salvare il thread ID {thread_id}")
             
             return thread_id
         except Exception as e:
@@ -43,66 +63,159 @@ class VoiceAssistant:
             logger.info(f"Usando thread_id di fallback: {fallback_id}")
             return fallback_id
 
-    async def process_command(self, command: str):
+    async def process_command(self, command: str) -> Dict[str, Any]:
         """Elabora il comando trascritto."""
         try:
-            # Get the current graph instance
-            graph = get_graph()
-            if graph is None:
-                raise ValueError("Graph not initialized")
-                
-            # Configura il RunnableConfig con il thread ID
-            config = RunnableConfig(configurable={"thread_id": self.thread_id})
+            if not self.graph:
+                logger.error("Graph not initialized")
+                self._initialize_graph()
+                if not self.graph:
+                    raise RuntimeError("Failed to initialize graph")
 
-            # Log dello stato iniziale formattato
-            formatted_state = {k: v for k, v in self.state_manager.state.items() if not isinstance(v, (list, dict)) or len(str(v)) < 100}
-            logger.debug("Stato iniziale: %s", formatted_state)
-
-            # Log del comando utente
-            logger.debug("Aggiunto messaggio utente: %s", command)
-
-            # Crea una copia dello stato corrente
-            state = self.state_manager.state.copy()
-            logger.debug("Stato iniziale: %s", state)  # Added state argument
-
-            # Aggiungi il messaggio dell'utente
+            logger.debug(f"Processing command: {command}")
+            current_state = self.state_manager.get_state()
+            state = dict(current_state)
+            
+            # Ensure required state fields exist
             if "user_messages" not in state:
                 state["user_messages"] = []
+            if "agent_messages" not in state:
+                state["agent_messages"] = []
+            if "processed_messages" not in state:
+                state["processed_messages"] = []
+                
+            # Add new message and update last_user_message
             state["user_messages"].append({"role": "user", "content": command})
-            logger.debug("Aggiunto messaggio utente: %s", command)
-
-            # Esegui il grafo
-            command_result = await graph.ainvoke(state, config=config)
-            logger.debug("Risultato dell'esecuzione del grafo: %s", command_result)  # Added command_result argument
-
-            # **Update the entire state instead of extracting 'update'**
-            if not isinstance(command_result, dict):
-                logger.error("Risultato del comando non è un dizionario.")
-                command_result = {}
-
-            self.state_manager.update_state(command_result)
+            state["last_user_message"] = command  # Add this line
             
-            # **Add logging for updated state**
-            logger.debug("Stato dopo update_state: %s", self.state_manager.state)  # Added state_manager.state argument
-
-            # Usa MemoryStore direttamente tramite StateManager
-            self.state_manager.memory_store.save_to_long_term_memory("session_logs", self.thread_id, self.state_manager.to_dict())  # Updated
-            assistant_message = self.state_manager.get_assistant_message()
-            logger.debug(f"Messaggio dell'assistente: {assistant_message}")
-
-            # Salva il thread_id nel database
-            self.state_manager.memory_store.save_to_long_term_memory("threads", self.thread_id, {"thread_id": self.thread_id})  # Updated
-            logger.debug(f"Thread ID salvato nel database: {self.thread_id}")
-
-            # Riproduci la risposta solo se c'è un messaggio e NON siamo in web mode
-            if assistant_message:
-                if not self.is_web_mode:
-                    self.audio_handler.speak(assistant_message)
-            else:
-                logger.warning("Messaggio dell'assistente è vuoto. Nessun audio da riprodurre.")
-
+            # Configure and execute graph
+            config = RunnableConfig(configurable={
+                "thread_id": self.thread_id,
+                "debug": True
+            })
+            
+            try:
+                logger.debug("Executing graph...")
+                if hasattr(self.graph, 'ainvoke'):
+                    result = await self.graph.ainvoke(state, config=config)
+                else:
+                    result = self.graph.invoke(state, config=config)
+                
+                if not isinstance(result, dict):
+                    raise TypeError(f"Graph returned invalid type: {type(result)}")
+                
+                logger.debug(f"Graph execution successful. Updating state with result")
+                await self.state_manager.update_state(result)
+                await self.save_conversation_state(result)
+                await self.handle_assistant_message(result)
+                
+            except Exception as e:
+                logger.error(f"Graph execution failed: {e}", exc_info=True)
+                raise RuntimeError(f"Graph execution failed: {e}")
+                
         except Exception as e:
-            logger.error(f"Errore nell'elaborazione del comando: {e}", exc_info=True)
+            logger.error(f"Command processing failed: {e}", exc_info=True)
+            raise
+
+    async def save_conversation_state(self, result: Dict[str, Any]) -> None:
+        """Save conversation state to memory"""
+        try:
+            self.state_manager.memory_store.save_to_long_term_memory(
+                "session_logs", 
+                self.thread_id, 
+                self.state_manager.to_dict()
+            )
+        except Exception as e:
+            logger.error(f"Error saving conversation state: {e}")
+
+    async def handle_assistant_message(self, result: Dict[str, Any]) -> None:
+        """Handle assistant message output"""
+        try:
+            assistant_message = self.state_manager.get_assistant_message()
+            if assistant_message and not self.is_web_mode:
+                self.audio_handler.speak(assistant_message)
+        except Exception as e:
+            logger.error(f"Error handling assistant message: {e}")
+
+    async def process_message(self, user_message: str) -> Dict[str, Any]:
+        """Process a user message and return the response"""
+        try:
+            logger.debug(f"Stato iniziale: {self.state_manager.get_state()}")
+            logger.debug(f"Aggiunto messaggio utente: {user_message}")
+            
+            # Update state with user message
+            self.state_manager.add_user_message({"role": "user", "content": user_message})
+            
+            # Execute graph with current state using the execute_graph function
+            if self.graph:
+                # Await the graph result
+                graph_result = await execute_graph(self.graph, self.state_manager.get_state())
+                logger.debug(f"Risultato dell'esecuzione del grafo: {graph_result}")
+                
+                if not graph_result:
+                    logger.error("Graph execution returned no result")
+                    return {}
+                    
+                # Ensure we have a dict before updating state
+                if isinstance(graph_result, dict):
+                    await self.state_manager.update_state(graph_result)  # Added await here
+                else:
+                    logger.error(f"Invalid graph result type: {type(graph_result)}")
+                    return {}
+            
+            # Get agent response
+            agent_message = self.get_last_agent_message()
+            if agent_message:
+                logger.debug(f"Messaggio dell'assistente: {agent_message}")
+                
+            # Save conversation to long-term memory
+            self.save_conversation()
+            
+            return self.state_manager.get_state() or {}  # Ensure we always return a dict
+            
+        except Exception as e:
+            logger.error(f"Error processing message: {e}")
+            return {"error": str(e)}  # Return error dict instead of None
+
+    def get_last_agent_message(self) -> Optional[str]:
+        """Get the last agent message from state"""
+        try:
+            agent_messages = self.state_manager.get_state().get("agent_messages", [])
+            if (agent_messages):
+                return agent_messages[-1].get("content")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting last agent message: {e}")
+            return None
+
+    async def handle_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Process an incoming chat message"""
+        try:
+            await self.process_command(message["message"])
+            return {
+                "message": self.state_manager.get_assistant_message() or "Message processed",
+                "audio_response": None  # Add audio response if needed
+            }
+        except Exception as e:
+            logger.error(f"Error processing message: {e}")
+            raise Exception(f"Error processing message: {str(e)}")
+
+    async def handle_audio(self, audio_bytes: bytes, 
+                         user_id: str, 
+                         session_id: str = "", 
+                         metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Process an incoming audio file"""
+        try:
+            metadata_dict = metadata or {}
+            command = self.audio_handler.transcribe_audio(audio_bytes)
+            await self.process_command(command)
+            return {
+                "status": "success",
+                "message": self.state_manager.get_assistant_message() or "Audio processed"
+            }
+        except Exception as e:
+            logger.error(f"Error processing audio: {e}")
+            raise Exception(f"Error processing audio: {str(e)}")
 
     def update_state(self, last_user_message: str):
         """Aggiorna lo stato con la memoria a breve e lungo termine."""
@@ -154,6 +267,18 @@ class VoiceAssistant:
         while self.listening:
             self.listen_and_process()
         logger.info("Voice Assistant terminato.")
+
+    def save_conversation(self) -> None:
+        """Save current conversation to memory"""
+        try:
+            state = self.state_manager.get_current_state()
+            self.state_manager.memory_store.save_to_long_term_memory(
+                "session_logs", 
+                self.thread_id, 
+                state
+            )
+        except Exception as e:
+            logger.error(f"Error saving conversation: {e}")
 
 def should_update_profile(command: str) -> bool:
     """Determina se aggiornare il profilo utente basato sul comando."""

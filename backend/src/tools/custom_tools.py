@@ -44,7 +44,7 @@ def make_handoff_tool(agent_name: str):
             "tool_call_id": tool_call_id,
         }
         return Command(
-            goto=agent_name,
+            goto="supervisor",  # Changed to transition back to supervisor
             graph=Command.PARENT,
             update={
                 "user_messages": state.get("user_messages", []),

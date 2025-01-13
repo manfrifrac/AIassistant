@@ -1,37 +1,33 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, File, UploadFile, Form
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any
+from uuid import UUID
+import uuid
 from backend.src.voice_assistant import VoiceAssistant
 from backend.src.state.state_manager import StateManager
 from backend.src.state.state_schema import StateSchema
 from backend.src.utils.log_config import setup_logging
 from backend.src.tts import generate_speech
 from backend.src.stt import transcribe_audio
-import asyncio
+from backend.src.core_components import CoreComponents  # Import CoreComponents
+from backend.src.models.serializers import MessageRequest, MessageResponse, AudioRequest  # Update import
+from backend.src.agents import SupervisorAgent  # Updated import
+from backend.src.dependencies import get_supervisor  # Correct import path
 import logging
 from pathlib import Path
 import os
 import base64
-from backend.src.core_components import CoreComponents  # Import CoreComponents
 
 # Base setup - fai questo solo se non è già stato fatto
 if not logging.getLogger().handlers:
     setup_logging(global_debug_mode=True)
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app first
-app = FastAPI()
+# Remove the separate FastAPI app
+# app = FastAPI()
 
-# CORS middleware configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
-)
+router = APIRouter()
 
 # Initialize core components after app creation
 core = CoreComponents.get_instance()
@@ -39,20 +35,37 @@ state_manager = core.state_manager
 assistant = core.assistant
 assistant.is_web_mode = True  # Imposta il web mode
     
-# Models - Aggiorna per corrispondere al frontend
+# Models - Solo modelli specifici per questo modulo
 class Command(BaseModel):
     command: str
 
 class ChatMessage(BaseModel):
-    command: str  # Cambiato da 'message' a 'command' per corrispondere al frontend
+    command: str
 
 # API Endpoints - Verifica che corrispondano al frontend
-@app.get("/api/chat", tags=["chat"])  # Changed from /api/test
+@router.get("/chat", tags=["chat"])
 async def chat_status():
     """Check if chat service is available"""
     return {"status": "success", "message": "Chat service is connected!"}
 
-@app.post("/api/chat", tags=["chat"])  # Changed from /api/test
+@router.post("/chat", tags=["chat"], response_model=MessageResponse)
+async def process_message(
+    request: MessageRequest,  # Ora usa il MessageRequest importato
+    supervisor: SupervisorAgent = Depends(get_supervisor)  # Updated type
+):
+    try:
+        # Converti le stringhe in UUID se necessario
+        response = await supervisor.process_request(
+            user_id=request.user_id,
+            message=request.message,
+            session_id=request.session_id,
+            metadata=request.metadata or {}
+        )
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/chat", tags=["chat"])  # Changed from /api/test
 async def process_chat_message(message: ChatMessage):  # Renamed from process_test_command
     """Process chat messages"""
     try:
@@ -89,9 +102,19 @@ async def process_chat_message(message: ChatMessage):  # Renamed from process_te
         logger.error(f"Error processing chat message: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/audio", tags=["audio"])
-async def process_audio(audio: UploadFile = File(...)):
+@router.post("/audio", tags=["audio"])
+async def process_audio(
+    audio: UploadFile = File(...),
+    user_id: str = Form(...),
+    session_id: Optional[str] = Form(None),
+    metadata: Optional[str] = Form(None)
+):
     try:
+        # Converti le stringhe in UUID
+        user_id_uuid = uuid.UUID(user_id)
+        session_id_uuid = uuid.UUID(session_id) if session_id else None
+        metadata_dict = {} if metadata is None else eval(metadata)  # Usa json.loads per maggiore sicurezza
+
         temp_path = f"temp_{audio.filename}"
         with open(temp_path, "wb") as buffer:
             content = await audio.read()
@@ -114,7 +137,7 @@ async def process_audio(audio: UploadFile = File(...)):
                 # Genera l'audio di risposta
                 audio_path = generate_speech(response_text)
                 
-                if audio_path:
+                if (audio_path):
                     try:
                         with open(audio_path, "rb") as audio_file:
                             audio_content = audio_file.read()
@@ -145,6 +168,11 @@ async def process_audio(audio: UploadFile = File(...)):
             content={"status": "error", "message": "Could not transcribe audio"},
             status_code=400
         )
+    except ValueError as e:
+        return JSONResponse(
+            content={"status": "error", "message": "Invalid UUID format"},
+            status_code=400
+        )
     except Exception as e:
         logger.error(f"Error processing audio: {e}", exc_info=True)
         return JSONResponse(
@@ -152,7 +180,7 @@ async def process_audio(audio: UploadFile = File(...)):
             status_code=500
         )
 
-@app.websocket("/ws")
+@router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     client_id = id(websocket)
@@ -172,11 +200,11 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.close(code=1011)
     
 # Static files serving - must be last
-frontend_path = Path(__file__).parent.parent.parent / "frontend/appfront/build"
-if frontend_path.exists():
-    # Mount static files before the catch-all route
-    app.mount("/static", StaticFiles(directory=str(frontend_path / "static")), name="static")
-    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
-    logger.info(f"Serving frontend from {frontend_path}")
-else:
-    logger.warning(f"Frontend directory not found at {frontend_path}")
+# frontend_path = Path(__file__).parent.parent.parent / "frontend/appfront/build"
+# if frontend_path.exists():
+#     # Mount static files before the catch-all route
+#     app.mount("/static", StaticFiles(directory=str(frontend_path / "static")), name="static")
+#     app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
+#     logger.info(f"Serving frontend from {frontend_path}")
+# else:
+#     logger.warning(f"Frontend directory not found at {frontend_path}")

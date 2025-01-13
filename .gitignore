@@ -24,6 +24,9 @@ venv/
 .env
 backend/venvback
 backend/node_modules
+frontend/venvFront/*
+frontend/venvFront/
+frontend/venvFront
 
 # Python extras
 *.pyc

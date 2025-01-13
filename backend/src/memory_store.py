@@ -1,7 +1,6 @@
-from typing import List, Dict, Any, Union, Optional
+from typing import List, Dict, Any, Union, Optional, Coroutine, Sequence, Awaitable
 import logging
-from backend.src.tools.embedding import vectorize_messages, semantic_search
-from backend.src.state.state_schema import manage_short_term_memory, manage_long_term_memory
+
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import json
@@ -11,8 +10,20 @@ import chromadb
 from chromadb.config import Settings
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='onnx_mini_lm_l6_v2')
+from backend.src.tools.embedding import semantic_search, vectorize_messages
+import numpy as np
+from numpy.typing import NDArray
+from backend.src.models.memory import Memory
+from backend.src.database.repositories.memory_repository import MemoryRepository
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+async def manage_long_term_memory(existing: Optional[Dict[str, Any]], new_items: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge existing and new memory items safely."""
+    result = {} if existing is None else existing.copy()
+    result.update(new_items)
+    return result
 
 class PersistentStore:
     def __init__(self, connection_string: str):
@@ -73,7 +84,7 @@ class PersistentStore:
             results = cursor.fetchall()
             #logger.debug(f"Search results in long-term memory for '{query}': {results}")
             return results
-            # Execute a text-based search within the long_term_memory table
+            # Execute a text-based search within the long_term_memory table based on namespace and key
 
 class LongTermStore:
     def __init__(self, store: PersistentStore, index: dict):
@@ -91,7 +102,8 @@ class LongTermStore:
 
 class MemoryStore:
     def __init__(self):
-        self._model: Optional[SentenceTransformer] = None
+        self.repository = MemoryRepository()
+        self._model = None
         self.short_term_memory: List[Dict[str, Any]] = []
         
         try:
@@ -155,8 +167,8 @@ class MemoryStore:
             logger.debug("Nessun messaggio nella memoria a breve termine.")
             return []
         
-        vectors = vectorize_messages(self.short_term_memory)
-        relevant = semantic_search(vectors, query, self.short_term_memory)
+        vectors = self.process_embeddings(self.short_term_memory)
+        relevant = semantic_search(np.array(vectors), query, self.short_term_memory)
         logger.debug(f"Messaggi rilevanti trovati: {relevant}")
         return relevant
         # Vectorize messages and perform semantic search to find relevant entries
@@ -242,11 +254,13 @@ class MemoryStore:
 
     def manage_short_term(self, existing: list, new_items: list) -> list:
         """Manages short-term memory keeping only recent, unique items."""
-        return manage_short_term_memory(existing, new_items)
+        if not new_items:
+            return existing[-100:] if existing else []  # Keep last 100 items
+        return (existing + new_items)[-100:]  # Combine and keep last 100
 
-    def manage_long_term(self, existing: dict, new_items: dict) -> dict:
+    async def manage_long_term(self, existing: Optional[Dict[str, Any]], new_items: Dict[str, Any]) -> Dict[str, Any]:
         """Manages long-term memory ensuring proper merging of data."""
-        return manage_long_term_memory(existing, new_items)
+        return await manage_long_term_memory(existing, new_items)
 
     def extract_relevant_info(self, message_data: dict) -> dict:
         """Extracts information worth storing long-term."""
@@ -269,16 +283,71 @@ class MemoryStore:
 
     def update_short_term(self, memory: list) -> list:
         """Trim short-term memory to the last 100 messages."""
-        return manage_short_term_memory(memory, [])
+        return self.manage_short_term(memory, [])
 
-    def update_long_term(self, memory: dict) -> dict:
+    def update_long_term(self, memory: dict, thread_id: str) -> dict:
         """Salva i dati rilevanti nella memoria a lungo termine."""
-        relevant_data = extract_relevant_data(memory)
-        long_term_memory = self.retrieve_from_long_term_memory("long_term_namespace", "memory_key")
-        long_term_memory.update(relevant_data)
-        self.save_to_long_term_memory("long_term_namespace", "memory_key", long_term_memory)
-        logger.debug(f"Memoria a lungo termine aggiornata con: {relevant_data}")
-        return long_term_memory
+        try:
+            relevant_data = extract_relevant_data(memory)
+            if relevant_data:
+                self.save_to_long_term_memory("session_logs", thread_id, relevant_data)
+            return relevant_data
+        except Exception as e:
+            logger.error(f"Error updating long-term memory: {e}")
+            return {}
+
+    def process_embeddings(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Process embeddings for semantic search"""
+        try:
+            # Extract messages content for vectorization
+            messages = [msg["content"] if isinstance(msg, dict) else str(msg) for msg in data]
+            
+            # Get vector embeddings using the model and convert to numpy array
+            vectors: NDArray = self.model.encode(messages, convert_to_numpy=True)
+            
+            if len(data) > 0:
+                # Get query from last message
+                query = data[-1]["content"]
+                # Perform semantic search with properly typed vectors
+                results = semantic_search(vectors, query, data)
+                return results
+            return []
+            
+        except Exception as e:
+            logger.error(f"Error processing embeddings: {e}")
+            return []
+
+    async def merge_memories(self, existing: Optional[Dict[str, Any]], new_items: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge memory items safely handling None case"""
+        return await manage_long_term_memory(existing, new_items)
+
+    async def save_memory(self, memory_data: Dict[str, Any]) -> None:
+        """Save memory with required fields"""
+        memory = Memory(
+            content=memory_data.get("content", ""),  # Required
+            memory_type=memory_data.get("memory_type", "default"),  # Required
+            user_id=memory_data.get("user_id"),
+            timestamp=datetime.now()
+        )
+        await self.repository.create(memory)
+
+    async def update_memory(self) -> Dict[str, Any]:
+        """Update memory data and return results"""
+        return await self.merge_memories(None, {})
+
+    def dict_to_memory(self, data: Dict[str, Any]) -> Memory:
+        """Convert dict to Memory instance with required fields"""
+        return Memory(
+            content=data.get("content", ""),  # Required
+            memory_type=data.get("memory_type", "default"),  # Required
+            user_id=data.get("user_id"),
+            id=data.get("id"),
+            key=data.get("key"),
+            value=data.get("value"),
+            timestamp=data.get("timestamp"),
+            created_at=data.get("created_at"),
+            updated_at=data.get("updated_at")
+        )
 
 def extract_relevant_data(memory: dict) -> dict:
     """Estrae i dati rilevanti dalla memoria."""
@@ -296,6 +365,3 @@ def some_condition(key: str, value: Any) -> bool:
     if "important_message" in key:
         return bool(value.get("content"))
     return False
-
-# Remove any direct instantiation of MemoryStore if present outside CoreComponents
-# All MemoryStore instances should be accessed via StateManager from CoreComponents

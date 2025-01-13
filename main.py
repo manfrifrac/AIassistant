@@ -7,12 +7,17 @@ Usage:
 """
 
 import argparse
-from backend.src.core_components import CoreComponents  # Import CoreComponents
-from backend.start_frontend import start_frontend
 import logging
+import uvicorn
+import asyncio
+from backend.src.core_components import CoreComponents  # Import CoreComponents
+from backend.src.app import app  # Import FastAPI app
+from backend.start_frontend import start_frontend
 
-def start_backend(core: CoreComponents):
-    core.assistant.run()
+async def start_backend_async(core: CoreComponents):
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000)
+    server = uvicorn.Server(config)
+    await server.serve()
 
 def main():
     parser = argparse.ArgumentParser(description='AI Assistant')
@@ -28,7 +33,7 @@ def main():
     if args.mode == 'frontend':
         start_frontend(core)
     else:
-        start_backend(core)
+        asyncio.run(start_backend_async(core))
 
 if __name__ == "__main__":
     main()

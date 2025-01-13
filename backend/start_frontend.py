@@ -16,7 +16,7 @@ from backend.src.state.state_schema import StateSchema
 from backend.src.voice_assistant import VoiceAssistant
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from backend.src.api import app  # Import the app instance directly
+from backend.src.app import app  # Import app from app.py
 from backend.src.core_components import CoreComponents  # Import CoreComponents
 
 def handle_interrupt(signum, frame):

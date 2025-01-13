@@ -28,3 +28,4 @@ pyaudio
 soundfile
 torch
 openai-whisper
+asyncpg

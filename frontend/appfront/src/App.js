@@ -1,15 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';  // Add this import
 import { BezierDiamond } from './components/BezierDiamond';
 import { AudioAnalyzer } from './components/AudioAnalyzer';
 import './App.css';
 
 // URLs e endpoints
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = '';
+
 const ENDPOINTS = {
-  CHAT_STATUS: `${API_URL}/api/chat`,
-  CHAT_MESSAGE: `${API_URL}/api/chat`,
-  AUDIO_UPLOAD: `${API_URL}/audio`,
-  WEBSOCKET: `ws://localhost:8000/ws`
+  CHAT_STATUS: `/api/status`,
+  CHAT_MESSAGE: `/api/chat/message`,
+  AUDIO_UPLOAD: `/api/audio`,
+  WEBSOCKET: '/ws'
 };
 
 function App() {
@@ -51,7 +53,12 @@ function App() {
       const response = await fetch(ENDPOINTS.CHAT_MESSAGE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: command.trim() })  // Verifica che questo corrisponda al backend
+        body: JSON.stringify({
+          message: command.trim(),
+          user_id: uuidv4(),
+          session_id: uuidv4(),
+          metadata: {}
+        })
       });
       
       if (!response.ok) throw new Error('Network response was not ok');

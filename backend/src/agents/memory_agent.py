@@ -1,59 +1,74 @@
 from langgraph.types import Command
 from langgraph.graph import END
 from typing import Literal, Any, Dict, List
-from backend.src.memory_store import MemoryStore  # Replace CoreComponents import
+from backend.src.memory_store import MemoryStore
 import logging
+from uuid import uuid4
+from backend.src.agents.base import BaseAgent, NodeType
 
 logger = logging.getLogger("MemoryAgent")
 
-def create_memory_node(memory_store: MemoryStore):
-    """Create memory node with injected memory_store"""
-    def memory_node(state: dict) -> Command[Literal["__end__"]]:
+class MemoryAgent(BaseAgent):
+    """
+    The MemoryAgent:
+    Input:
+      - {user_message}
+      - {context}
+      - {assistant_message}
+      - {session_id}
+    Operations:
+      - Updates short-term memory (stm_data)
+      - Updates long-term memory (ltm_data)
+      - Logs the interaction
+    Output:
+      - {updated_stm}, {updated_ltm}, {interaction_log}
+    """
+    def __init__(self, agent_id, config, memory_store):
+        super().__init__(agent_id, config)
+        self.memory_store = memory_store
+        self.logger = logger
+
+    def validate_state(self, state: Dict[str, Any]) -> bool:
+        if not isinstance(state, dict):
+            logger.error("Invalid state type")
+            return False
+
+        required_keys = ["user_messages", "agent_messages"]
+        missing_keys = [k for k in required_keys if k not in state]
+        
+        if missing_keys:
+            logger.error(f"Missing required keys: {missing_keys}")
+            return False
+
+        return True
+
+    def process(self, state: dict) -> Command[NodeType]:
+        """Process the current state and update memory."""
         try:
-            # Extract current memories
-            short_term = state.get("short_term_memory", [])
-            long_term = state.get("long_term_memory", {})
-            
-            # Get latest message info
-            latest_message = {
-                "user_message": state.get("last_user_message", ""),
-                "agent_response": state.get("agent_messages", [])[-1]["content"] if state.get("agent_messages") else "",
-                "context": {
-                    "last_agent": state.get("last_agent"),
-                    "query": state.get("query", ""),
-                    "research_result": state.get("research_result", "")
-                }
+            # Update long-term memory
+            thread_id = state.get("thread_id", "default-thread")
+            messages = {
+                "user_messages": state.get("user_messages", []),
+                "agent_messages": state.get("agent_messages", [])
             }
             
-            # Update short-term memory with the latest message
-            updated_short_term = memory_store.manage_short_term(short_term, [latest_message])
+            updated_long_term = self.memory_store.manage_long_term(thread_id, messages)
             
-            # Extract and update long-term memory if important information is present
-            important_info = memory_store.extract_relevant_info(latest_message)
-            updated_long_term = long_term  # Initialize updated_long_term
-            if important_info:
-                updated_long_term = memory_store.manage_long_term(long_term, important_info)
-                memory_store.save_to_long_term_memory(
-                    "conversation_history", 
-                    state.get("thread_id", "default"), 
-                    updated_long_term
-                )
-            
+            # Return command without name parameter
             return Command(
                 goto=END,
                 update={
-                    "short_term_memory": updated_short_term,
-                    "long_term_memory": updated_long_term if important_info else long_term,
-                    "user_messages": state.get("user_messages", []),
-                    "processed_messages": state.get("processed_messages", [])
+                    **state,
+                    "long_term_memory": updated_long_term
                 }
             )
-            
         except Exception as e:
-            logger.error(f"Error in memory management: {e}")
-            return Command(goto=END, update={})
+            logger.error(f"Error in memory management: {e}", exc_info=True)
+            return Command(goto=END, update=state)
 
-    return memory_node
+def create_memory_node(memory_store: MemoryStore):
+    agent = MemoryAgent(uuid4(), {"model": "gpt-3.5-turbo"}, memory_store)
+    return agent.process
 
 # Keep the reducer function as is
 def manage_memory_reducer(existing: Any, new: Any) -> Any:

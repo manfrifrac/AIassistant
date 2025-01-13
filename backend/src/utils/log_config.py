@@ -193,7 +193,7 @@ def setup_logging(global_debug_mode: bool = False):
         "httpx": logging.WARNING,
         "gtts": logging.WARNING,
         "urllib3": logging.WARNING,
-        "LangGraphSetup": logging.INFO,
+        "LangGraphSetup": logging.DEBUG,
         "StateManager": logging.DEBUG,
         "VoiceAssistant": logging.DEBUG,
         "SupervisorAgent": logging.DEBUG,
